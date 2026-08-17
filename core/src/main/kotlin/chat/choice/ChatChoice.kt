@@ -5,5 +5,5 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ChatChoice(
-    val content: Content,
+    val content: Content.Response,
 )

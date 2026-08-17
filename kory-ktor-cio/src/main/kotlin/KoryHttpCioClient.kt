@@ -3,6 +3,8 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import io.ktor.http.headers
@@ -25,12 +27,13 @@ fun createKoryHttpCIOClient(
             install(HttpTimeout) {
                 requestTimeoutMillis = 120_000
             }
-            headers {
-                append(HttpHeaders.ContentType, "application/json; charset=utf-8")
-            }
+//            install(Logging) {
+//                level = LogLevel.ALL
+//            }
             defaultRequest {
                 url(baseUrl)
 
+                header(HttpHeaders.ContentType, "application/json; charset=utf-8")
                 auth?.let { key ->
                     header(
                         HttpHeaders.Authorization,

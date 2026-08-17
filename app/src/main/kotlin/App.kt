@@ -1,6 +1,7 @@
 package io.kory.app
 
 import io.kory.core.chat.Chat
+import io.kory.core.chat.reasoning.ReasoningConfig
 import io.kory.core.chat.request.ChatRequest
 import io.kory.core.dsl.chat.koryChat
 import io.kory.core.dsl.chat.request.koryChatRequest
@@ -16,18 +17,6 @@ import io.kory.utils.Printer
 import kotlinx.coroutines.coroutineScope
 
 suspend fun main() {
-//    val name = "Kotlin"
-//    //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-//    // to see how IntelliJ IDEA suggests fixing it.
-//    val message = "Hello, $name!"
-//    val printer = Printer(message)
-//    printer.printMessage()
-//
-//    for (i in 1..5) {
-//        //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-//        // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-//        println("i = $i")
-//    }
 
     val client = OpenAIClient(
         apiKey = "ollama",
@@ -36,58 +25,41 @@ suspend fun main() {
 
     coroutineScope {
 
-        // List models.
-        val response = client.listOpenAIModels()
+        val reasoningOutput: MutableList<String> = mutableListOf()
+        val output: MutableList<String> = mutableListOf()
+        var isReasoning: Boolean
 
-        println(response.data)
+        client.chatStream {
+            reasoning = ReasoningConfig.Enabled(ReasoningConfig.Enabled.Level.LOW)
+            chat(
+                model = "qwen3.5:4b",
+                blocks = {
+                    user("Hello, what's your name?")
+                }
+            )
+        }.collect { chunk ->
+            val firstChoice = chunk.choices.first()
+            when (val content = firstChoice.content) {
+                is Content.Text -> {
+                    isReasoning = false
+                    if (content.text.isNotBlank()) {
+                        output.add(content.text)
+                    }
+                }
+                is Content.Parts -> {
+                    isReasoning = false
+                    println("Parts not supported.")
+                }
+                is Content.Reasoning -> {
+                    isReasoning = true
+                    reasoningOutput.add(content.value)
+                }
+            }
 
-//        // Create request using by koryChat function.
-//        val request = koryChat(
-//                model = "qwen3.5:4b",
-//                blocks = {
-//                    system("You are helpful assistant")
-//                    user("Hello, ping!")
-//                }
-//            ).asChatRequest(
-//                // Optional fields.
-//                temperature = 0.7,
-//                maxTokens = 4096,
-//                topK = 40
-//            )
-//
-//        val request2 = koryChatRequest {
-//            temperature = 0.7
-//            maxTokens = 4096
-//            topK = 40
-//
-//            chat("qwen3.5:4b") {
-//                system("You are helpful assistant")
-//                user("Hello, ping!")
-//            }
-//        }
-//
-//        client.chatStream(request).collect { chunk -> println(chunk) }
-//
-//        // Create request using by chatStream function with DSL support.
-//        client.chatStream("qwen3.5:4b") {
-//            user("Hello, ping!")
-//        }.collect { chunk -> println(chunk) }
-//
-//        // Old.
-//        client.chatStream(
-//            ChatRequest(
-//                chat = Chat(
-//                    messages = listOf(
-//                        Message(
-//                            role = Role.USER,
-//                            content = Content.Text(text = "Hello, ping!")
-//                        )
-//                    ),
-//                    model = "qwen3.5:4b"
-//                )
-//            )
-//        ).collect { chunk -> println(chunk) }
+            println(if (isReasoning) "Reasoning: $reasoningOutput" else "Output: $output")
+        }
 
-
+        println("Full reasoning: ${reasoningOutput.joinToString("")}")
+        println("Full output: ${output.joinToString("")}")
     }
 }

@@ -13,7 +13,13 @@ data class OpenAIChunkChoice(
     val delta: OpenAIDelta,
     @SerialName("finish_reason") val finishReason: String? = null
 ) : Mapper<ChatChoice> {
-    override fun map(): ChatChoice = ChatChoice(content = Content.Text(this.delta.content.orEmpty()))
+    override fun map(): ChatChoice {
+        delta.effectiveReasoning?.let { effectiveReasoning ->
+            return ChatChoice(Content.Reasoning(effectiveReasoning))
+        }
+
+        return ChatChoice(content = Content.Text(this.delta.content.orEmpty()))
+    }
 
     fun toChatChoice(): ChatChoice = map()
 }

@@ -1,6 +1,7 @@
 package io.kory.core.dsl.chat.request
 
 import io.kory.core.chat.Chat
+import io.kory.core.chat.reasoning.ReasoningConfig
 import io.kory.core.chat.request.ChatRequest
 import io.kory.core.dsl.chat.ChatBuilder
 import io.kory.core.dsl.chat.koryChat
@@ -11,6 +12,7 @@ class ChatRequestBuilder {
     var temperature: Double? = null
     var maxTokens: Int? = null
     var topK: Int? = null
+    var reasoning: ReasoningConfig = ReasoningConfig.Disabled
 
     private var chat: Chat? = null
 
@@ -29,6 +31,7 @@ class ChatRequestBuilder {
             temperature = temperature,
             maxTokens = maxTokens,
             topK = topK,
+            reasoning = reasoning,
         )
     }
 }

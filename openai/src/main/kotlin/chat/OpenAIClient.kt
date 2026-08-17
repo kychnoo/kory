@@ -20,6 +20,7 @@ import io.kory.openai.extension.toModels
 import io.kory.openai.extension.toOpenAIContent
 import io.kory.openai.extension.toOpenAIContentParts
 import io.kory.openai.extension.toOpenAIMessageList
+import io.kory.openai.extension.toOpenAIReasoningEffort
 import io.kory.openai.json.json
 import io.kory.openai.message.OpenAIMessage
 import io.kory.openai.message.content.OpenAIChatCompletionContent
@@ -60,6 +61,7 @@ class OpenAIClient(
                     content = it.content.toOpenAIContent()
                 )
             },
+            reasoningEffort = request.reasoning?.toOpenAIReasoningEffort()
         )
 
         return chat(openAIRequest).toChatResponse()
@@ -92,7 +94,8 @@ class OpenAIClient(
     override fun chatStream(request: ChatRequest): Flow<ChatChunk> {
          return chatStream(OpenAIChatCompletionRequest(
             model = request.chat.model,
-            messages = request.chat.messages.toOpenAIMessageList()
+            messages = request.chat.messages.toOpenAIMessageList(),
+            reasoningEffort = request.reasoning?.toOpenAIReasoningEffort()
         )).map { it.map() }
     }
 

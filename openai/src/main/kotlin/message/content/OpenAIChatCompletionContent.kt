@@ -7,21 +7,25 @@ import kotlinx.serialization.Serializable
 
 @Serializable(with = OpenAIChatCompletionContentSerializer::class)
 sealed interface OpenAIChatCompletionContent {
-    fun toContent(): Content
+    fun toResponseContent(): Content.Response
+    fun toRequestContent(): Content.Request
 
     data class Text(
         val value: String
-    ) : OpenAIChatCompletionContent, Mapper<Content> {
-        override fun map(): Content = Content.Text(value)
-        override fun toContent(): Content = map()
+    ) : OpenAIChatCompletionContent, Mapper<Content.Text> {
+        override fun map(): Content.Text = Content.Text(value)
+        override fun toRequestContent(): Content.Request = map()
+        override fun toResponseContent(): Content.Response = map()
     }
 
     data class Parts(
         val parts: List<OpenAIChatCompletionContentPart>
-    ) : OpenAIChatCompletionContent, Mapper<Content> {
-        override fun map(): Content = Content.Parts(
+    ) : OpenAIChatCompletionContent, Mapper<Content.Parts> {
+        override fun map(): Content.Parts = Content.Parts(
             parts = parts.map { it.toContentPart() }
         )
-        override fun toContent(): Content = map()
+
+        override fun toRequestContent(): Content.Request = map()
+        override fun toResponseContent(): Content.Response = map()
     }
 }

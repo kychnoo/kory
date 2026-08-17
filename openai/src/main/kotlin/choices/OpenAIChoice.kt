@@ -15,7 +15,7 @@ data class OpenAIChoice(
     val finishReason: String? = null,
 ) : Mapper<ChatChoice> {
     override fun map(): ChatChoice = ChatChoice(
-        content = message.content.toContent()
+        content = message.content.toResponseContent()
     )
 
     fun toChatChoice(): ChatChoice = map()

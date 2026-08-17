@@ -17,7 +17,7 @@ class ContentBuilder {
         parts.add(ContentPart.Image(source))
     }
 
-    internal fun build(): Content = if (parts.size == 1 && parts.first() is ContentPart.Text) {
+    internal fun build(): Content.Request = if (parts.size == 1 && parts.first() is ContentPart.Text) {
         Content.Text((parts.first() as ContentPart.Text).value)
     } else {
         Content.Parts(parts)
