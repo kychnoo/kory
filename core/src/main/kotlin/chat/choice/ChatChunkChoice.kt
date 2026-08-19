@@ -4,10 +4,8 @@ import io.kory.core.message.content.Content
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ChatChoice(
+data class ChatChunkChoice(
     val index: Int,
-    val contents: List<Content.Response>,
+    val content: Content.Response,
     val finishReason: String? = null,
-) {
-    val firstContent: Content.Response? get() = contents.firstOrNull()
-}
+)

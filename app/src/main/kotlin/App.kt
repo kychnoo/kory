@@ -1,19 +1,8 @@
 package io.kory.app
 
-import io.kory.core.chat.Chat
 import io.kory.core.chat.reasoning.ReasoningConfig
-import io.kory.core.chat.request.ChatRequest
-import io.kory.core.dsl.chat.koryChat
-import io.kory.core.dsl.chat.request.koryChatRequest
-import io.kory.core.extension.process
-import io.kory.core.message.Message
-import io.kory.core.message.Role
 import io.kory.core.message.content.Content
-import io.kory.core.message.content.source.ImageSource
 import io.kory.openai.chat.OpenAIClient
-import io.kory.openai.extension.availableModels
-import io.kory.openai.message.content.OpenAIImageUrl
-import io.kory.utils.Printer
 import kotlinx.coroutines.coroutineScope
 
 suspend fun main() {
@@ -27,10 +16,10 @@ suspend fun main() {
 
         val reasoningOutput: MutableList<String> = mutableListOf()
         val output: MutableList<String> = mutableListOf()
-        var isReasoning: Boolean
+        var isReasoning: Boolean = false
 
         client.chatStream {
-            reasoning = ReasoningConfig.Enabled(ReasoningConfig.Enabled.Level.LOW)
+            reasoning = ReasoningConfig.Enabled(ReasoningConfig.Level.LOW)
             chat(
                 model = "qwen3.5:4b",
                 blocks = {
@@ -46,14 +35,18 @@ suspend fun main() {
                         output.add(content.text)
                     }
                 }
+
                 is Content.Parts -> {
                     isReasoning = false
                     println("Parts not supported.")
                 }
+
                 is Content.Reasoning -> {
                     isReasoning = true
                     reasoningOutput.add(content.value)
                 }
+
+                is Content.ToolCall -> TODO()
             }
 
             println(if (isReasoning) "Reasoning: $reasoningOutput" else "Output: $output")

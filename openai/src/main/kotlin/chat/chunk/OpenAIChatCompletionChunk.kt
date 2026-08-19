@@ -16,7 +16,7 @@ data class OpenAIChatCompletionChunk(
 ) : Mapper<ChatChunk> {
     override fun map(): ChatChunk {
         return ChatChunk(
-            choices = choices.map { it.toChatChoice() },
+            choices = choices.map { it.toChatChunkChoice() },
         )
     }
 

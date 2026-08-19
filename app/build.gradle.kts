@@ -3,6 +3,8 @@ plugins {
     // The shared code is located in `buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts`.
     id("buildsrc.convention.kotlin-jvm")
 
+    kotlin("plugin.serialization") version "2.4.10"
+
     // Apply the Application plugin to add support for building an executable JVM application.
     application
 }
@@ -15,6 +17,7 @@ dependencies {
     implementation(project(":openai"))
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 }
 
 application {

@@ -6,9 +6,10 @@ import io.kory.openai.message.content.OpenAIChatCompletionContent
 import io.kory.openai.message.content.OpenAIChatCompletionContentPart
 import io.kory.openai.message.content.OpenAIImageUrl
 
-fun Content.Request.toOpenAIContent(): OpenAIChatCompletionContent = when (this) {
+fun Content.Request.toOpenAIContent(): OpenAIChatCompletionContent? = when (this) {
     is Content.Text -> OpenAIChatCompletionContent.Text(text)
     is Content.Parts -> OpenAIChatCompletionContent.Parts(parts.toOpenAIContentParts())
+    is Content.ToolResult, is Content.ToolCall -> null
 }
 
 fun ContentPart.toOpenAIContentPart(): OpenAIChatCompletionContentPart = when (this) {

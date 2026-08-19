@@ -1,6 +1,7 @@
 package io.kory.openai.choices.chunk
 
 import io.kory.core.chat.choice.ChatChoice
+import io.kory.core.chat.choice.ChatChunkChoice
 import io.kory.core.message.content.Content
 import io.kory.core.utils.mapper.Mapper
 import io.kory.openai.chat.chunk.OpenAIDelta
@@ -12,14 +13,22 @@ data class OpenAIChunkChoice(
     val index: Int,
     val delta: OpenAIDelta,
     @SerialName("finish_reason") val finishReason: String? = null
-) : Mapper<ChatChoice> {
-    override fun map(): ChatChoice {
+) : Mapper<ChatChunkChoice> {
+    override fun map(): ChatChunkChoice {
         delta.effectiveReasoning?.let { effectiveReasoning ->
-            return ChatChoice(Content.Reasoning(effectiveReasoning))
+            return ChatChunkChoice(
+                index = index,
+                content = Content.Reasoning(effectiveReasoning),
+                finishReason = finishReason
+            )
         }
 
-        return ChatChoice(content = Content.Text(this.delta.content.orEmpty()))
+        return ChatChunkChoice(
+            index = index,
+            content = Content.Text(this.delta.content.orEmpty()),
+            finishReason = finishReason
+        )
     }
 
-    fun toChatChoice(): ChatChoice = map()
+    fun toChatChunkChoice(): ChatChunkChoice = map()
 }
