@@ -5,7 +5,7 @@ import io.kory.core.tool.KoryTool
 
 @KoryDsl
 class ToolsBuilder {
-    val tools= mutableListOf<KoryTool<*, *>>()
+    val tools = mutableListOf<KoryTool<*, *>>()
 
     fun tool(tool: KoryTool<*, *>) {
         tools.add(tool)

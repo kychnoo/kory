@@ -10,11 +10,14 @@ sealed interface Content {
     @Serializable
     sealed interface Response : Content
 
+    @Serializable
+    sealed interface StreamResponse
+
     @SerialName("text")
     @Serializable
     data class Text(
         val text: String
-    ) : Content, Request, Response
+    ) : Content, Request, Response, StreamResponse
 
     @SerialName("tool_call")
     @Serializable
@@ -23,6 +26,13 @@ sealed interface Content {
         val name: String,
         val argumentsJson: String
     ) : Response, Request
+
+    data class ToolCallDelta(
+        val index: Int,
+        val id: String? = null,
+        val name: String? = null,
+        val argumentsChunk: String? = null,
+    ) : StreamResponse
 
     @SerialName("tool_result")
     @Serializable
@@ -36,7 +46,7 @@ sealed interface Content {
     @Serializable
     data class Reasoning (
         val value: String
-    ) : Response
+    ) : Response, StreamResponse
 
     @SerialName("parts")
     @Serializable

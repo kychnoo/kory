@@ -4,6 +4,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class OpenAIFunctionCall(
-    val name: String,
-    val arguments: String
+    val name: String? = null,
+    val arguments: String? = null
 )

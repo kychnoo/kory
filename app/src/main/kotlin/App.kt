@@ -47,6 +47,7 @@ suspend fun main() {
                 }
 
                 is Content.ToolCall -> TODO()
+                is Content.ToolCallDelta -> TODO()
             }
 
             println(if (isReasoning) "Reasoning: $reasoningOutput" else "Output: $output")

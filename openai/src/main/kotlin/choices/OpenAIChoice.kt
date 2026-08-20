@@ -34,9 +34,9 @@ data class OpenAIChoice(
         message.toolCalls?.forEach { toolCall ->
             responseContents.add(
                 Content.ToolCall(
-                    id = toolCall.id,
-                    name = toolCall.function.name,
-                    argumentsJson = toolCall.function.arguments
+                    id = toolCall.id.orEmpty(),
+                    name = toolCall.function.name.orEmpty(),
+                    argumentsJson = toolCall.function.arguments.orEmpty()
                 )
             )
         }

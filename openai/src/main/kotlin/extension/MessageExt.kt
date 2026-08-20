@@ -28,6 +28,7 @@ fun Message.toOpenAIMessageParam(): OpenAIMessageParam = when (this.role) {
             content = null,
             toolCalls = listOf(
                 OpenAIToolCall(
+                    index = 0,
                     id = content.id,
                     type = "function",
                     function = OpenAIFunctionCall(

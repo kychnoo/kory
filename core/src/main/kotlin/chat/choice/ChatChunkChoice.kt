@@ -6,6 +6,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ChatChunkChoice(
     val index: Int,
-    val content: Content.Response,
+    val content: Content.StreamResponse,
     val finishReason: String? = null,
 )

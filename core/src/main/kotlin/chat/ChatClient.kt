@@ -11,13 +11,13 @@ import kotlinx.coroutines.flow.Flow
 interface ChatClient {
     suspend fun chat(request: ChatRequest): ChatResponse
 
-    fun chatStream(request: ChatRequest): Flow<ChatChunk>
-
     suspend fun chat(model: String, blocks: ChatBuilder.() -> Unit): ChatResponse
 
-    fun chatStream(model: String, blocks: ChatBuilder.() -> Unit): Flow<ChatChunk>
-
     suspend fun chat(block: ChatRequestBuilder.() -> Unit): ChatResponse
+
+    fun chatStream(request: ChatRequest): Flow<ChatChunk>
+
+    fun chatStream(model: String, blocks: ChatBuilder.() -> Unit): Flow<ChatChunk>
 
     fun chatStream(block: ChatRequestBuilder.() -> Unit): Flow<ChatChunk>
 

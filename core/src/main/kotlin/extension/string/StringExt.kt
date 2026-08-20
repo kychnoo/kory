@@ -1,5 +1,7 @@
 package io.kory.core.extension.string
 
+import io.kory.core.message.Message
+import io.kory.core.message.Role
 import io.kory.core.message.content.Content
 
 fun String.parseThinkContent(): List<Content.Response> {
@@ -20,3 +22,7 @@ fun String.parseThinkContent(): List<Content.Response> {
 
     return result
 }
+
+fun String.asSystemMessage() = Message(Role.SYSTEM, Content.Text(this))
+fun String.asUserMessage() = Message(Role.USER, Content.Text(this))
+fun String.asAssistantMessage() = Message(Role.ASSISTANT, Content.Text(this))

@@ -4,7 +4,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class OpenAIToolCall(
-    val id: String,
-    val type: String,
+    val index: Int,
+    val id: String? = null,
+    val type: String? = null,
     val function: OpenAIFunctionCall
 )
