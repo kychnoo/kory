@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.Flow
  * This loop can be disabled with `autoExecute = false`, and callbacks are
  * provided for monitoring tool calls.
  *
- * @sample io.kory.app.CheckRealApi
  */
 interface ToolCapable {
     /** Callback invoked when a tool is called. Parameters: (toolName, argsJson). */

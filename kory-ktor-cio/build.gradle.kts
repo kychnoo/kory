@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "io.kory.ktor-cio"
-version = "unspecified"
+version = "0.0.1"
 
 dependencies {
     api(project(":kory-ktor"))

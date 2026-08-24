@@ -9,7 +9,6 @@ import kotlinx.serialization.Serializable
 /**
  * An individual content part in an OpenAI multi-part message.
  *
- * @sample examples.openai.chat.BasicChatCall
  */
 @Serializable
 sealed interface OpenAIChatCompletionContentPart {

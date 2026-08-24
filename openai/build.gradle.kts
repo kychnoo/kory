@@ -5,13 +5,20 @@ plugins {
 }
 
 group = "io.kory.openai"
-version = "unspecified"
+version = "0.0.1"
 
+dokka {
+    dokkaSourceSets.main {
+        samples.from(
+            project(":examples")
+                .file("src/main/kotlin")
+        )
+    }
+}
 
 dependencies {
     api(project(":core"))
     api(project(":kory-ktor"))
-    api(project(":examples"))
 
     implementation(libs.kotlinxCoroutines)
     implementation(libs.kotlinxSerialization)

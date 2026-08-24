@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "io.kory"
-version = "unspecified"
+version = "0.0.1"
 
 dependencies {
     testImplementation(kotlin("test"))

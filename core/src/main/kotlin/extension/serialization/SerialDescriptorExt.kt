@@ -20,7 +20,6 @@ import kotlinx.serialization.json.put
  *
  * @return A JSON Schema object with `"type": "object"`, `"properties"`, and optionally `"required"`.
  *
- * @sample io.kory.app.tools.TestWeatherTool
  */
 fun SerialDescriptor.toJsonSchema(): JsonObject {
     val properties = buildJsonObject {

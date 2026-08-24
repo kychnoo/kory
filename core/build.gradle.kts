@@ -5,13 +5,20 @@ plugins {
 }
 
 group = "io.kory.core"
-version = "unspecified"
+version = "0.0.1"
+
+dokka {
+    dokkaSourceSets.main {
+        samples.from(
+            project(":examples")
+                .file("src/main/kotlin")
+        )
+    }
+}
 
 dependencies {
     implementation(libs.kotlinxCoroutines)
     implementation(libs.kotlinxSerialization)
-
-    api(project(":examples"))
 
     testImplementation(kotlin("test"))
 }

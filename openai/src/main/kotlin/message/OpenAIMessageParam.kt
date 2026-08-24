@@ -15,8 +15,6 @@ import kotlinx.serialization.json.JsonClassDiscriminator
  * - [System] — System prompt.
  * - [Assistant] — Model's previous response (for conversation history).
  * - [Tool] — Tool execution result.
- *
- * @sample examples.openai.chat.BasicChatCall
  */
 @OptIn(ExperimentalSerializationApi::class)
 @JsonClassDiscriminator("role")

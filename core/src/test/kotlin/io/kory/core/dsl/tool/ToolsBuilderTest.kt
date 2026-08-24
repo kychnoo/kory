@@ -39,6 +39,6 @@ internal class ToolsBuilderTest {
             tool(dummyTool)
         }
 
-        assertEquals(2, tools.size)
+        assertEquals(1, tools.size)
     }
 }

@@ -7,8 +7,6 @@ package io.kory.core.tool.annotation
  * what each parameter represents.
  *
  * @property description A human-readable description of the parameter.
- *
- * @sample io.kory.app.tools.TestWeatherTool
  */
 @Target(AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.BINARY)

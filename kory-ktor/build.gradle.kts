@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "io.kory.ktor"
-version = "unspecified"
+version = "0.0.1"
 
 dependencies {
     api(libs.ktor.client.core)
