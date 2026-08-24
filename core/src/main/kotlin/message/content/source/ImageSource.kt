@@ -2,11 +2,44 @@ package io.kory.core.message.content.source
 
 import kotlin.io.encoding.Base64
 
+/**
+ * Discriminated union for image origins.
+ *
+ * Supports three types of image sources:
+ * - [Url] — An HTTP/HTTPS URL pointing to an image.
+ * - [Bytes] — Raw image bytes with a MIME type.
+ * - [FilePath] — A local file path with a MIME type.
+ *
+ * Use [fromString] to parse a string into the appropriate variant:
+ * - Strings starting with `http://` or `https://` become [Url].
+ * - Strings starting with `data:` with `;base64,` become [Bytes].
+ * - All other strings become [FilePath] (with `file://` prefix stripped).
+ *
+ * @throws [java.io.FileNotFoundException] if image not found.
+ *
+ * @sample examples.core.chat.basicChatCreationWithDsl
+ */
 sealed interface ImageSource {
+
+    /**
+     * An image referenced by HTTP/HTTPS URL.
+     *
+     * @property url The full URL to the image.
+     *
+     * @sample examples.core.chat.content.source.loadImageSourceFromUrl
+     */
     data class Url(
         val url: String
     ) : ImageSource
 
+    /**
+     * An image stored as raw bytes with a MIME type.
+     *
+     * @property bytes The raw image bytes.
+     * @property mimeType The MIME type (default: `"image/jpeg"`).
+     *
+     * @sample examples.core.chat.content.source.createSourceWithBytes
+     */
     data class Bytes(
         val bytes: ByteArray,
         val mimeType: String = "image/jpeg"
@@ -30,12 +63,33 @@ sealed interface ImageSource {
         }
     }
 
+    /**
+     * An image referenced by local file path.
+     *
+     * @property path The file system path to the image.
+     * @property mimeType The MIME type (default: `"image/jpeg"`).
+     *
+     * @sample examples.core.chat.content.source.createSourceFromPath
+     */
     data class FilePath(
         val path: String,
         val mimeType: String = "image/jpeg"
     ) : ImageSource
 
     companion object {
+        /**
+         * Parses a string into the appropriate [ImageSource] variant.
+         *
+         * Parsing rules:
+         * - `"http://..."` or `"https://..."` → [Url]
+         * - `"data:image/png;base64,..."` → [Bytes] (decoded from Base64)
+         * - `"/path/to/file"` or `"file:///path/to/file"` → [FilePath]
+         *
+         * @param source The string to parse.
+         * @return The corresponding [ImageSource] variant.
+         *
+         * @sample examples.core.chat.content.source.detectImageSource
+         */
         fun fromString(source: String) : ImageSource = when {
             source.startsWith("http://") || source.startsWith("https://") -> Url(source)
 

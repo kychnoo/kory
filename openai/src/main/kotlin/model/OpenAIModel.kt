@@ -5,6 +5,15 @@ import io.kory.core.utils.mapper.Mapper
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * OpenAI model object from the `GET /models` endpoint.
+ *
+ * @property id The model identifier (e.g. `"gpt-4o"`).
+ * @property obj Object type (default: `"model"`).
+ * @property created Epoch timestamp when the model was created.
+ * @property ownedBy The organization that owns the model.
+ * @property shutdownDate ISO 8601 date when the model will be shut down. `null` if not scheduled.
+ */
 @Serializable
 data class OpenAIModel(
     val id: String,
@@ -20,6 +29,11 @@ data class OpenAIModel(
         contextWindow = ""
     )
 
+    /**
+     * Converts this to a provider-agnostic [Model].
+     *
+     * @return A [Model] with mapped fields.
+     */
     fun toModel(): Model = map()
 
 }

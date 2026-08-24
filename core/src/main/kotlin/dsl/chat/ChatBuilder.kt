@@ -28,6 +28,10 @@ class ChatBuilder(val modelName: String) {
         messages.add(Message(Role.USER, content))
     }
 
+    fun tool(text: String) {
+        messages.add(Message(Role.TOOL, Content.Text(text)))
+    }
+
     internal fun build(): Chat = Chat(
         messages = messages,
         model = modelName

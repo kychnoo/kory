@@ -8,6 +8,16 @@ import io.kory.openai.extension.toOpenAIReasoningEffort
 import io.kory.openai.tool.OpenAIFunctionDefinition
 import io.kory.openai.tool.OpenAiChatCompletionFunctionTool
 
+/**
+ * Converts a core [ChatRequest] to an [OpenAIChatCompletionRequest].
+ *
+ * Maps:
+ * - Chat messages → [OpenAIMessageParam][io.kory.openai.message.OpenAIMessageParam] list
+ * - Tools → [OpenAiChatCompletionFunctionTool] list with JSON Schema parameters
+ * - Reasoning config → [OpenAIReasoningEffort][io.kory.openai.reasoning.OpenAIReasoningEffort]
+ *
+ * @return A fully-formed [OpenAIChatCompletionRequest] ready for the API.
+ */
 fun ChatRequest.toOpenAIChatCompletionRequest(): OpenAIChatCompletionRequest = OpenAIChatCompletionRequest(
     model = this.chat.model,
     messages = this.chat.messages.toOpenAIMessageParamList(),

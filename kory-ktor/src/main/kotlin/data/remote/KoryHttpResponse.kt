@@ -1,7 +1,13 @@
-package data.remote
+package io.kory.ktor.data.remote
 
 import kotlinx.serialization.Serializable
 
+/**
+ * HTTP response wrapper.
+ *
+ * @property status The HTTP status code (e.g. 200, 404).
+ * @property body The response body as raw bytes.
+ */
 @Serializable
 data class KoryHttpResponse(
     val status: Int,

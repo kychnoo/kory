@@ -1,22 +1,20 @@
 plugins {
     kotlin("jvm")
-    kotlin("plugin.serialization") version "2.4.10"
+    alias(libs.plugins.kotlinPluginSerialization)
+    alias(libs.plugins.dokka)
 }
 
 group = "io.kory.openai"
 version = "unspecified"
 
-repositories {
-    mavenCentral()
-}
 
 dependencies {
-    implementation(project(":core"))
-    implementation(project(":kory-ktor"))
-    implementation(project(":kory-ktor-cio"))
+    api(project(":core"))
+    api(project(":kory-ktor"))
+    api(project(":examples"))
 
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation(libs.kotlinxCoroutines)
+    implementation(libs.kotlinxSerialization)
 
     testImplementation(kotlin("test"))
 }

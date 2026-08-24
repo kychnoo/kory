@@ -8,6 +8,20 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
+/**
+ * Generates a JSON Schema [JsonObject] from a serializable class descriptor.
+ *
+ * Each element is mapped to a JSON Schema property with:
+ * - `"type"` derived from the element's [SerialKind][kotlinx.serialization.descriptors.SerialKind]
+ *   via [toJsonType].
+ * - `"description"` from the [@ToolParam][ToolParam] annotation, if present and non-blank.
+ *
+ * Required fields (non-optional properties) are listed in the `"required"` array.
+ *
+ * @return A JSON Schema object with `"type": "object"`, `"properties"`, and optionally `"required"`.
+ *
+ * @sample io.kory.app.tools.TestWeatherTool
+ */
 fun SerialDescriptor.toJsonSchema(): JsonObject {
     val properties = buildJsonObject {
         for (i in 0 until elementsCount) {

@@ -19,6 +19,6 @@ class TestWeatherTool : KoryTool<TestWeatherTool.Args, String>(
     override val argsSerializer: KSerializer<Args> = serializer()
 
     override suspend fun execute(args: Args): String {
-        return "Current weather in ${args.city} is sunny, 22 Celsius"
+        return "Current weather is ${args.city} is sunny, 22 Celsius"
     }
 }

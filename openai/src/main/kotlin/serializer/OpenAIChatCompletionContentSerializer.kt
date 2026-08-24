@@ -13,6 +13,16 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonEncoder
 import kotlinx.serialization.json.JsonPrimitive
 
+/**
+ * Custom serializer for [OpenAIChatCompletionContent].
+ *
+ * Handles the dual serialization format:
+ * - [OpenAIChatCompletionContent.Text] → JSON string (e.g. `"hello"`)
+ * - [OpenAIChatCompletionContent.Parts] → JSON array (e.g. `[{"type":"text","text":"hello"}]`)
+ *
+ * This is required because the OpenAI API accepts content as either a string or an array
+ * of content parts, depending on whether the message contains only text or mixed media.
+ */
 object OpenAIChatCompletionContentSerializer : KSerializer<OpenAIChatCompletionContent> {
     override val descriptor: SerialDescriptor
         get() = JsonElement.serializer().descriptor

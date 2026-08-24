@@ -3,8 +3,17 @@
 // It is also used for some aspects of project-wide configuration, like managing plugins, dependencies, etc.
 // https://docs.gradle.org/current/userguide/settings_file_basics.html
 
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
 dependencyResolutionManagement {
     // Use Maven Central as the default repository (where Gradle will download dependencies) in all subprojects.
+    @Suppress("UnstableApiUsage")
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     @Suppress("UnstableApiUsage")
     repositories {
         mavenCentral()
@@ -19,12 +28,12 @@ plugins {
 // Include the `app` and `utils` subprojects in the build.
 // If there are changes in only one of the projects, Gradle will rebuild only the one that has changed.
 // Learn more about structuring projects with Gradle - https://docs.gradle.org/8.7/userguide/multi_project_builds.html
-include(":app")
-include(":utils")
-include(":core")
 
 rootProject.name = "kory"
-include("openai")
+
+include(":core")
 include("openai")
 include("kory-ktor")
 include("kory-ktor-cio")
+include(":app")
+include("examples")

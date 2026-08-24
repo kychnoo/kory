@@ -1,21 +1,20 @@
 plugins {
     kotlin("jvm")
-    kotlin("plugin.serialization") version "2.4.10"
+    alias(libs.plugins.kotlinPluginSerialization)
+    alias(libs.plugins.dokka)
 }
 
 group = "io.kory.ktor"
 version = "unspecified"
 
-repositories {
-    mavenCentral()
-}
-
 dependencies {
-    val ktorVersion = "3.5.2"
+    api(libs.ktor.client.core)
+    api(libs.ktor.client.content.negotiation)
+    api(libs.ktor.serialization.json)
+    api(libs.ktor.client.logging)
 
-    implementation("io.ktor:ktor-client-core:$ktorVersion")
-
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation(libs.kotlinxSerialization)
+    implementation(libs.kotlinxCoroutines)
 
     testImplementation(kotlin("test"))
 }

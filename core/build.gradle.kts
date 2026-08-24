@@ -1,18 +1,17 @@
 plugins {
     kotlin("jvm")
-    kotlin("plugin.serialization") version "2.4.10"
+    alias(libs.plugins.kotlinPluginSerialization)
+    alias(libs.plugins.dokka)
 }
 
 group = "io.kory.core"
 version = "unspecified"
 
-repositories {
-    mavenCentral()
-}
-
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation(libs.kotlinxCoroutines)
+    implementation(libs.kotlinxSerialization)
+
+    api(project(":examples"))
 
     testImplementation(kotlin("test"))
 }

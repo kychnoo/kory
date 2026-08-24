@@ -22,10 +22,10 @@
             <option value="$PROJECT_DIR$/app" />
             <option value="$PROJECT_DIR$/buildSrc" />
             <option value="$PROJECT_DIR$/core" />
+            <option value="$PROJECT_DIR$/examples" />
             <option value="$PROJECT_DIR$/kory-ktor" />
             <option value="$PROJECT_DIR$/kory-ktor-cio" />
             <option value="$PROJECT_DIR$/openai" />
-            <option value="$PROJECT_DIR$/utils" />
           </set>
         </option>
         <option name="myGradleHome" value="" />

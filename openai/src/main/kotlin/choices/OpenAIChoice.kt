@@ -8,6 +8,13 @@ import io.kory.openai.message.OpenAIMessage
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * A choice in an OpenAI chat completion response.
+ *
+ * @property index The index of this choice.
+ * @property message The message returned by the model.
+ * @property finishReason Why the model stopped: `"stop"`, `"length"`, `"tool_calls"`, etc.
+ */
 @Serializable
 data class OpenAIChoice(
     val index: Int,
@@ -36,7 +43,7 @@ data class OpenAIChoice(
                 Content.ToolCall(
                     id = toolCall.id.orEmpty(),
                     name = toolCall.function.name.orEmpty(),
-                    argumentsJson = toolCall.function.arguments.orEmpty()
+                    argumentsJson = toolCall.function.arguments?.takeIf { it.isNotBlank() } ?: "{}"
                 )
             )
         }
@@ -48,5 +55,10 @@ data class OpenAIChoice(
         )
     }
 
+    /**
+     * Converts this to a core [ChatChoice].
+     *
+     * @return A [ChatChoice] with mapped content.
+     */
     fun toChatChoice(): ChatChoice = map()
 }

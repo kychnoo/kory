@@ -8,6 +8,20 @@ import io.kory.openai.usages.OpenAIUsage
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * Raw OpenAI chat completion response.
+ *
+ * Contains the full response from the `/chat/completions` endpoint, including
+ * choices, usage statistics, and metadata. Use [toChatResponse] to convert
+ * to the provider-agnostic [ChatResponse].
+ *
+ * @property id Unique identifier for this completion.
+ * @property obj Object type (always `"chat.completion"`).
+ * @property created Epoch timestamp when the completion was created.
+ * @property model The model used for this completion.
+ * @property choices The list of completion choices.
+ * @property usage Token usage statistics. `null` if not included.
+ */
 @Serializable
 data class OpenAIChatCompletionResponse(
     val id: String,
@@ -21,5 +35,10 @@ data class OpenAIChatCompletionResponse(
         choices = choices.mapDomain()
     )
 
+    /**
+     * Converts this response to a provider-agnostic [ChatResponse].
+     *
+     * @return A [ChatResponse] with mapped choices.
+     */
     fun toChatResponse(): ChatResponse = map()
 }

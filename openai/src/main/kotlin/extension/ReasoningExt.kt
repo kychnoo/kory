@@ -3,6 +3,16 @@ package io.kory.openai.extension
 import io.kory.core.chat.reasoning.ReasoningConfig
 import io.kory.openai.reasoning.OpenAIReasoningEffort
 
+/**
+ * Converts a core [ReasoningConfig] to an OpenAI [OpenAIReasoningEffort].
+ *
+ * Mapping:
+ * - [ReasoningConfig.Disabled] → [OpenAIReasoningEffort.NONE]
+ * - [ReasoningConfig.Enabled] with [Level][ReasoningConfig.Level] → corresponding effort level
+ * - `null` → `null`
+ *
+ * @return The corresponding [OpenAIReasoningEffort], or `null` if the config is `null`.
+ */
 fun ReasoningConfig?.toOpenAIReasoningEffort(): OpenAIReasoningEffort? {
     return when (this) {
         ReasoningConfig.Disabled -> OpenAIReasoningEffort.NONE

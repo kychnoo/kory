@@ -9,11 +9,28 @@ import io.kory.openai.message.content.OpenAIChatCompletionContent
 import io.kory.openai.tool.OpenAIFunctionCall
 import io.kory.openai.tool.OpenAIToolCall
 
+/**
+ * Converts a core [Message] to an OpenAI response-style [OpenAIMessage].
+ *
+ * @return An [OpenAIMessage] with the same role and converted content.
+ */
 fun Message.toOpenAIMessage(): OpenAIMessage = OpenAIMessage(
     role = this.role,
     content = content.toOpenAIContent()
 )
 
+/**
+ * Converts a core [Message] to the appropriate [OpenAIMessageParam] subtype.
+ *
+ * Mapping:
+ * - [Role.USER] → [OpenAIMessageParam.User]
+ * - [Role.SYSTEM] → [OpenAIMessageParam.System]
+ * - [Role.ASSISTANT] → [OpenAIMessageParam.Assistant] (with tool calls if [Content.ToolCall])
+ * - [Role.TOOL] → [OpenAIMessageParam.Tool]
+ *
+ * @return The corresponding [OpenAIMessageParam].
+ * @throws IllegalStateException if the content type doesn't match the role.
+ */
 fun Message.toOpenAIMessageParam(): OpenAIMessageParam = when (this.role) {
     Role.USER -> OpenAIMessageParam.User(
         content = this.content.toOpenAIContent() ?: error("User message must contain text or parts")
@@ -55,5 +72,16 @@ fun Message.toOpenAIMessageParam(): OpenAIMessageParam = when (this.role) {
     }
 }
 
+/**
+ * Converts a list of core [Message] objects to [OpenAIMessageParam] items.
+ *
+ * @return A list of [OpenAIMessageParam] for use in OpenAI requests.
+ */
 fun List<Message>.toOpenAIMessageParamList(): List<OpenAIMessageParam> = map { it.toOpenAIMessageParam() }
+
+/**
+ * Converts a list of core [Message] objects to [OpenAIMessage] items.
+ *
+ * @return A list of [OpenAIMessage] for use in OpenAI responses.
+ */
 fun List<Message>.toOpenAIMessageList(): List<OpenAIMessage> = map { it.toOpenAIMessage() }
