@@ -21,6 +21,7 @@ import io.kory.core.tool.KoryTool
  */
 @KoryDsl
 class ChatRequestBuilder {
+    val choicesCount: Int? = null
     /** Sampling temperature (0.0–2.0). `null` uses provider default. */
     var temperature: Double? = null
     /** Maximum tokens to generate. `null` uses provider default. */
@@ -87,6 +88,7 @@ class ChatRequestBuilder {
         val currentChat = requireNotNull(chat) { "Chat must be initialized in ChatRequestBuilder" }
         return ChatRequest(
             chat = currentChat,
+            choicesCount = choicesCount,
             temperature = temperature,
             maxTokens = maxTokens,
             topK = topK,

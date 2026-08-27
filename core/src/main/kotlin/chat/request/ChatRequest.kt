@@ -30,6 +30,7 @@ import kotlinx.serialization.Transient
 @Serializable
 data class ChatRequest(
     val chat: Chat,
+    val choicesCount: Int? = null,
     val temperature: Double? = null,
     val maxTokens: Int? = null,
     val topK: Int? = null,

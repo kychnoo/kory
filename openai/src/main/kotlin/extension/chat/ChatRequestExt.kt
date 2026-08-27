@@ -21,6 +21,7 @@ import io.kory.openai.tool.OpenAiChatCompletionFunctionTool
 fun ChatRequest.toOpenAIChatCompletionRequest(): OpenAIChatCompletionRequest = OpenAIChatCompletionRequest(
     model = this.chat.model,
     messages = this.chat.messages.toOpenAIMessageParamList(),
+    n = this.choicesCount?.coerceIn(1, 128),
     tools = this.tools.takeIf { it.isNotEmpty() }?.map { tool ->
         OpenAiChatCompletionFunctionTool(
             type = "function",

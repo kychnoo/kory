@@ -23,10 +23,25 @@ import kotlinx.serialization.Serializable
 data class OpenAIChatCompletionRequest(
     val model: String,
     val messages: List<OpenAIMessageParam>,
+    val n: Int? = null,
     val tools: List<OpenAiChatCompletionFunctionTool>,
     @SerialName("reasoning_effort") val reasoningEffort: OpenAIReasoningEffort? = null,
     @SerialName("stream") private val stream: Boolean = false,
 ) {
+     constructor(
+         model: String,
+         messages: List<OpenAIMessageParam>,
+         choicesCount: Int? = null,
+         tools: List<OpenAiChatCompletionFunctionTool>,
+         reasoningEffort: OpenAIReasoningEffort? = null,
+    ) : this(
+        model = model,
+        messages = messages,
+        n = choicesCount,
+        tools = tools,
+        reasoningEffort = reasoningEffort
+    )
+
     /**
      * Returns a copy of this request with streaming enabled.
      *
