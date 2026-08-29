@@ -1,35 +1,44 @@
 plugins {
-    kotlin("jvm")
+    kotlin("multiplatform")
     alias(libs.plugins.kotlinPluginSerialization)
-    alias(libs.plugins.dokka)
+//    alias(libs.plugins.dokka)
 }
 
 group = "io.kory.openai"
 version = "0.0.1"
 
-dokka {
-    dokkaSourceSets.main {
-        samples.from(
-            project(":examples")
-                .file("src/main/kotlin")
-        )
-    }
-}
-
-dependencies {
-    api(project(":core"))
-    api(project(":kory-ktor"))
-
-    implementation(libs.kotlinxCoroutines)
-    implementation(libs.kotlinxSerialization)
-
-    testImplementation(kotlin("test"))
-}
+//dokka {
+//    dokkaSourceSets.main {
+//        samples.from(
+//            project(":examples")
+//                .file("src/main/kotlin")
+//        )
+//    }
+//}
 
 kotlin {
+    jvm()
     jvmToolchain(21)
-}
 
-tasks.test {
-    useJUnitPlatform()
+    iosArm64()
+    iosSimulatorArm64()
+    iosX64()
+    macosArm64()
+
+    mingwX64()
+    linuxX64()
+
+    sourceSets {
+        commonMain.dependencies {
+            api(project(":core"))
+            api(project(":kory-ktor"))
+
+            implementation(libs.kotlinxCoroutines)
+            implementation(libs.kotlinxSerialization)
+        }
+
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
+    }
 }
