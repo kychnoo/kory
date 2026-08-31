@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink
+
 plugins {
     kotlin("multiplatform")
     alias(libs.plugins.kotlinPluginSerialization)
@@ -39,5 +41,14 @@ kotlin {
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
+    }
+}
+
+tasks.withType<KotlinNativeLink>().configureEach {
+    val hostOs = System.getProperty("os.name").lowercase()
+    val target = this.target
+
+    if (hostOs.startsWith("windows") && (target.contains("linux") || target.contains("macos") || target.contains("ios"))) {
+        enabled = false
     }
 }

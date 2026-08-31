@@ -69,7 +69,7 @@ jobs:
           restore-keys: konan-${{ runner.os }}-
 
       - name: Run native tests (windows).
-        uses: ./gradlew mingwX64Test
+        run: ./gradlew mingwX64Test
 
       - name: Upload test reports on failure
         if: failure()
