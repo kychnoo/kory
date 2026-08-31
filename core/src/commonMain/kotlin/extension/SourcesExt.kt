@@ -17,7 +17,7 @@ import kotlin.io.encoding.Base64
  * @see io.kory.core.message.content.Content
  * @see io.kory.core.chat.Chat
  *
- * @throws [kotlinx.io.files.FileNotFoundException] if the file was not found when using [ImageSource.FilePath]
+ * @throws [io.kory.core.exception.files.FileNotFoundException] if the file was not found when using [ImageSource.FilePath]
  *
  * @return The string representation of the image source.
  */

@@ -49,6 +49,7 @@ interface ToolCapable {
     suspend fun chatWithTools(
         request: ChatRequest,
         autoExecute: Boolean = true,
+        maxSteps: Int? = null,
         onToolCall: ToolCallCallback = null,
     ): ChatResponse
 
@@ -64,6 +65,7 @@ interface ToolCapable {
     suspend fun chatWithTools(
         model: String,
         autoExecute: Boolean = true,
+        maxSteps: Int? = null,
         onToolCall: ToolCallCallback = null,
         blocks: ChatBuilder.() -> Unit
     ): ChatResponse
@@ -78,6 +80,7 @@ interface ToolCapable {
      */
     suspend fun chatWithTools(
         autoExecute: Boolean = true,
+        maxSteps: Int? = null,
         onToolCall: ToolCallCallback = null,
         block: ChatRequestBuilder.() -> Unit
     ): ChatResponse
@@ -98,26 +101,10 @@ interface ToolCapable {
     fun chatStreamWithTools(
         request: ChatRequest,
         autoExecute: Boolean = true,
+        maxSteps: Int? = null,
+        currentStep: Int = 0,
         onFullToolCollected: ToolCallCallback = null,
         onToolCall: ToolCallCallback = null
-    ): Flow<ChatChunk>
-
-    /**
-     * Streams a chat with tools using DSL-style message construction.
-     *
-     * @param model The model identifier.
-     * @param autoExecute Whether to automatically execute tool calls (default: `true`).
-     * @param onFullToolCollected Callback invoked when a complete tool call is accumulated.
-     * @param onToolCall Callback invoked before each tool execution.
-     * @param blocks A [ChatBuilder] lambda for adding messages.
-     * @return A [Flow] of [ChatChunk] streaming responses.
-     */
-    fun chatStreamWithTools(
-        model: String,
-        autoExecute: Boolean = true,
-        onFullToolCollected: ToolCallCallback = null,
-        onToolCall: ToolCallCallback = null,
-        blocks: ChatBuilder.() -> Unit
     ): Flow<ChatChunk>
 
     /**
@@ -131,6 +118,8 @@ interface ToolCapable {
      */
     fun chatStreamWithTools(
         autoExecute: Boolean = true,
+        maxSteps: Int? = null,
+        currentStep: Int = 0,
         onFullToolCollected: ToolCallCallback = null,
         onToolCall: ToolCallCallback = null,
         block: ChatRequestBuilder.() -> Unit

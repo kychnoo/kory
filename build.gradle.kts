@@ -17,9 +17,4 @@ dokka {
             layout.buildDirectory.dir("dokka/html")
         )
     }
-    dokkaSourceSets.configureEach {
-        samples.from(
-            project(":examples").file("src/main/kotlin")
-        )
-    }
 }

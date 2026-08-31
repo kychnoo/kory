@@ -1,13 +1,15 @@
 plugins {
     kotlin("multiplatform")
     alias(libs.plugins.kotlinPluginSerialization)
-//    alias(libs.plugins.dokka)
+    alias(libs.plugins.dokka)
 }
 
 group = "io.kory.ktor"
 version = "0.0.1"
 
 kotlin {
+    applyDefaultHierarchyTemplate()
+
     jvm()
     jvmToolchain(21)
 
@@ -36,6 +38,24 @@ kotlin {
 
         commonTest.dependencies {
             implementation(kotlin("test"))
+        }
+
+        val mingwX64Main by getting {
+            dependencies {
+                implementation(libs.ktor.client.winhttp)
+            }
+        }
+
+        val linuxX64Main by getting {
+            dependencies {
+                implementation(libs.ktor.client.curl)
+            }
+        }
+
+        val appleMain by getting {
+            dependencies {
+                implementation(libs.ktor.client.darwin)
+            }
         }
     }
 }

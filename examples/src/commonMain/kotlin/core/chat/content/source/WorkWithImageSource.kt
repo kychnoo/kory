@@ -7,14 +7,11 @@ import java.io.File
 
 fun createSourceFromPath() {
     // Create an image from FilePath.
-    val imageSource = try {
+    val imageSource =
         ImageSource.FilePath(path = "path/to/photo.jpg", mimeType = "image/png") // Default mime type is image/jpeg.
-    } catch (fNEx: FileNotFoundException) {
-        println("Image not found, detail message: ${fNEx.message}")
-        null
-    }
+            .takeIf { it.exists() }
 
-    imageSource?.let { image ->
+    imageSource.let { image ->
         // Add image Source to content and send to API...
     }
 }

@@ -1,28 +1,31 @@
 package examples.openai.client
 
+import io.kory.core.chat.client.ApiKey
+import io.kory.core.exception.KeyNotFoundException
 import io.kory.ktor.KoryHttpClient
 import io.kory.ktor.data.remote.auth.KoryAuth
 import io.kory.ktor.data.remote.config.KoryHttpClientConfig
 import io.kory.openai.chat.OpenAIClient
 
 fun openAIClientCreation() {
-    val openAIApiKey = System.getenv("OPEN_AI_API_KEY")
-
-    if (openAIApiKey.isNullOrBlank()) error("Error: No api key provided")
-
     // Create OpenAI client.
-    val client = OpenAIClient(
-        apiKey = openAIApiKey // Api key(required)
-    )
+    val client = try {
+        OpenAIClient(apiKey = ApiKey.fromEnv()) // Set AI_API_KEY in your environment.
+    } catch (kNfEx: KeyNotFoundException) {
+        error("No api key provided.\nDetail message: ${kNfEx.message}")
+    } catch (e: Exception) {
+        error("Error: ${e.message}")
+    }
 
     // With custom base url.
-    val clientWithCustomUrl = OpenAIClient(
-        apiKey = "Your api key",
-        baseUrl = "https://openai/compatible.domain/v1",
-    )
+    val clientWithCustomUrl = try {
+        OpenAIClient(apiKey = ApiKey.fromEnv())
+    } catch (e: Exception) {
+        error("Error: ${e.message}")
+    }
 
     val baseUrl = "https://openai/compatible.domain/v1"
-    val apiKey = "Your API key"
+    val apiKey = ApiKey.fromEnv()
 
     // And with kory http client.
     val clientWithCustomHttpClient = OpenAIClient(
@@ -31,9 +34,8 @@ fun openAIClientCreation() {
         httpClient = KoryHttpClient.create(
             KoryHttpClientConfig(
                 baseUrl = baseUrl, // https://openai/compatible.domain/v1
-                auth = KoryAuth.Bearer(apiKey) // Authentication(Optional)
+                auth = KoryAuth.Bearer(apiKey.value) // Authentication
             )
-
         )
     )
 }

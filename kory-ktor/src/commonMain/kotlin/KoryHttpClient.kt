@@ -33,7 +33,7 @@ import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.io.IOException
 import kotlinx.serialization.json.Json
 
@@ -81,7 +81,7 @@ class KoryHttpClient private constructor(
      * @return A [Flow] of trimmed response lines.
      * @throws KoryHttpException.HttpStatus if the response status is not 2xx.
      */
-    fun streamPost(path: String, body: String): Flow<String> = flow {
+    fun streamPost(path: String, body: String): Flow<String> = channelFlow {
         client.preparePost(path) {
             setBody(body)
         }.execute { response ->
@@ -109,7 +109,7 @@ class KoryHttpClient private constructor(
                 val lines = builder.split('\n')
                 for (line in lines.dropLast(1)) {
                     val trimmedLine = line.trim()
-                    if (trimmedLine.isNotEmpty()) emit(trimmedLine)
+                    if (trimmedLine.isNotEmpty()) send(trimmedLine)
                 }
 
                 builder.setLength(0)
@@ -117,7 +117,7 @@ class KoryHttpClient private constructor(
             }
 
             if (builder.isNotBlank()) {
-                emit(builder.toString().trim())
+                send(builder.toString().trim())
             }
         }
     }

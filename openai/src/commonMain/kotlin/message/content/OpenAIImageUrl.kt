@@ -21,6 +21,8 @@ data class OpenAIImageUrl(
          *
          * @param imageSource The image source to convert.
          * @return An [OpenAIImageUrl] with the processed URL.
+         *
+         * @throws [io.kory.core.exception.files.FileNotFoundException] if image not found.
          */
         fun fromImageSource(imageSource: ImageSource): OpenAIImageUrl = OpenAIImageUrl(
             url = imageSource.process()

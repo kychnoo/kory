@@ -27,6 +27,7 @@ import io.kory.openai.extension.chat.toOpenAIChatCompletionRequest
 import io.kory.openai.extension.toModels
 import io.kory.openai.json.json
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
@@ -57,28 +58,23 @@ private class PartialToolCallAccumulator(
 class OpenAIClient(
     private val apiKey: ApiKey,
     private val baseUrl: String = "https://api.openai.com/v1",
-    private val httpClient: KoryHttpClient = KoryHttpClient.create(
-        KoryHttpClientConfig(
-            baseUrl = baseUrl,
-            auth = KoryAuth.Bearer(apiKey.value),
-        )
-    )
+    httpClient: KoryHttpClient? = null
 ) : ChatClient, ToolCapable {
 
-    constructor(
-        apiKey: String,
-        baseUrl: String = "https://api.openai.com/v1",
-        httpClient: KoryHttpClient = KoryHttpClient.create(
-            KoryHttpClientConfig(
-                baseUrl = baseUrl,
-                auth = KoryAuth.Bearer(apiKey),
-            )
+    private val client: KoryHttpClient = httpClient ?: KoryHttpClient.create(
+        KoryHttpClientConfig(
+            baseUrl = baseUrl,
+            auth = KoryAuth.Bearer(apiKey.value)
         )
-    ) : this(
-        apiKey = ApiKey(apiKey),
-        baseUrl = baseUrl,
-        httpClient = httpClient
     )
+
+    companion object {
+        operator fun invoke(
+            apiKey: String,
+            baseUrl: String = "https://api.openai.com/v1",
+            httpClient: KoryHttpClient? = null
+        ): OpenAIClient = OpenAIClient(ApiKey(apiKey), baseUrl, httpClient)
+    }
 
     /**
      * Sends a raw OpenAI chat completion request.
@@ -87,8 +83,8 @@ class OpenAIClient(
      * @return The raw OpenAI response.
      * @throws RuntimeException if the API returns a non-2xx status.
      */
-    suspend fun chat(request: OpenAIChatCompletionRequest): OpenAIChatCompletionResponse {
-        val response = httpClient.post(
+    suspend fun chat(request: OpenAIChatCompletionRequest): OpenAIChatCompletionResponse = withContext(Dispatchers.Default) {
+        val response = client.post(
             "chat/completions",
             json.encodeToString(request)
         )
@@ -98,7 +94,7 @@ class OpenAIClient(
             throw RuntimeException("Error during chat completion")
         }
 
-        return json.decodeFromString<OpenAIChatCompletionResponse>(
+        json.decodeFromString<OpenAIChatCompletionResponse>(
             response.body.decodeToString()
         )
     }
@@ -171,7 +167,7 @@ class OpenAIClient(
     fun chatStream(request: OpenAIChatCompletionRequest): Flow<OpenAIChatCompletionChunk> = flow {
         val streamRequest = request.stream()
 
-        httpClient.streamPost(
+        client.streamPost(
             "chat/completions",
             json.encodeToString(streamRequest)
         ).collect { line ->
@@ -190,7 +186,7 @@ class OpenAIClient(
             val chunk = json.decodeFromString<OpenAIChatCompletionChunk>(data)
             emit(chunk)
         }
-    }
+    }.flowOn(Dispatchers.Default)
 
     /**
      * Sends a chat request to the OpenAI API and returns a streaming response.
@@ -248,15 +244,11 @@ class OpenAIClient(
      * Lists all available OpenAI models.
      *
      * @return The raw OpenAI model list response.
-     * @throws RuntimeException if the API returns a non-2xx status.
+     * @throws io.kory.ktor.exception.KoryHttpException
+     * if the API returns a non-2xx status.
      */
     suspend fun listOpenAIModels(): OpenAIModelListResponse {
-        val response = httpClient.get("models")
-
-        if (response.status !in 200..299) {
-            println(response.body.decodeToString())
-            throw RuntimeException("Error during list models")
-        }
+        val response = client.get("models")
 
         return json.decodeFromString<OpenAIModelListResponse>(
             response.body.decodeToString()
@@ -305,6 +297,7 @@ class OpenAIClient(
     override suspend fun chatWithTools(
         request: ChatRequest,
         autoExecute: Boolean,
+        maxSteps: Int?,
         onToolCall: ToolCapable.ToolCallCallback
     ): ChatResponse {
         if (request.tools.isEmpty() || !autoExecute) {
@@ -313,25 +306,30 @@ class OpenAIClient(
 
         val messages = request.chat.messages.toMutableList()
         val toolMap = request.tools.associateBy { it.name }
+        var currentStep = 0
 
-        while (true) {
+        while (maxSteps == null || currentStep < maxSteps) {
+            currentStep++
+
             val currentRequest = request.copy(chat = request.chat.copy(messages = messages))
             val response = chat(currentRequest)
 
             if (response.choices.isEmpty()) return response
 
+            val allToolCalls = response.choices
+                .flatMap { it.contents }
+                .filterIsInstance<Content.ToolCall>()
+
+            if (allToolCalls.isEmpty()) return response
+
             for (choice in response.choices) {
-                val toolCalls = choice.contents.filterIsInstance<Content.ToolCall>()
-
-                if (toolCalls.isEmpty()) return response
-
                 for (content in choice.contents) {
                     if (content is Content.Request) {
                         messages.add(Message(role = Role.ASSISTANT, content = content))
                     }
                 }
 
-                for (call in toolCalls) {
+                for (call in allToolCalls) {
                     onToolCall?.invoke(call.name, call.argumentsJson)
 
                     val result = executeTool(call, toolMap)
@@ -349,6 +347,8 @@ class OpenAIClient(
                 }
             }
         }
+
+        return chat(request.copy(chat = request.chat.copy(messages = messages)))
     }
 
     /**
@@ -367,12 +367,14 @@ class OpenAIClient(
     override suspend fun chatWithTools(
         model: String,
         autoExecute: Boolean,
+        maxSteps: Int?,
         onToolCall: ToolCapable.ToolCallCallback,
         blocks: ChatBuilder.() -> Unit
     ): ChatResponse {
         val chat = koryChat(model, blocks)
         return chatWithTools(
             request = chat.asChatRequest(),
+            maxSteps = maxSteps,
             autoExecute = autoExecute,
             onToolCall = onToolCall
         )
@@ -393,12 +395,14 @@ class OpenAIClient(
      */
     override suspend fun chatWithTools(
         autoExecute: Boolean,
+        maxSteps: Int?,
         onToolCall: ToolCapable.ToolCallCallback,
         block: ChatRequestBuilder.() -> Unit
     ): ChatResponse {
         val request = koryChatRequest(block)
         return chatWithTools(
             request = request,
+            maxSteps = maxSteps,
             autoExecute = autoExecute,
             onToolCall = onToolCall
         )
@@ -424,6 +428,8 @@ class OpenAIClient(
     override fun chatStreamWithTools(
         request: ChatRequest,
         autoExecute: Boolean,
+        maxSteps: Int?,
+        currentStep: Int,
         onFullToolCollected: ToolCapable.ToolCallCallback,
         onToolCall: ToolCapable.ToolCallCallback
     ): Flow<ChatChunk> = flow {
@@ -431,10 +437,13 @@ class OpenAIClient(
         val assistantTextBuilder = StringBuilder()
 
         chatStream(request).collect { chunk ->
+            var hasTextDelta = false
             var hasToolDelta = false
+
             for (choice in chunk.choices) {
                 when (val content = choice.content) {
                     is Content.Text -> {
+                        hasTextDelta = true
                         assistantTextBuilder.append(content.text)
                     }
                     is Content.ToolCallDelta -> {
@@ -450,7 +459,7 @@ class OpenAIClient(
                 }
             }
 
-            if (!hasToolDelta) emit(chunk)
+            if (hasTextDelta || !hasToolDelta) emit(chunk)
         }
 
         if (toolBuffers.isNotEmpty()) {
@@ -466,7 +475,7 @@ class OpenAIClient(
                 onFullToolCollected?.invoke(call.name, call.argumentsJson)
             }
 
-            if (autoExecute) {
+            if (autoExecute && (maxSteps == null || currentStep < maxSteps)) {
                 val messages = request.chat.messages.toMutableList()
                 val toolMap = request.tools.associateBy { it.name }
 
@@ -502,40 +511,10 @@ class OpenAIClient(
                     chat = request.chat.copy(messages = messages)
                 )
 
-                emitAll(chatStreamWithTools(nextRequest, true, onFullToolCollected, onToolCall))
+                emitAll(chatStreamWithTools(nextRequest, true, maxSteps, currentStep, onFullToolCollected, onToolCall))
             }
         }
     }.flowOn(Dispatchers.Default)
-
-    /**
-     * This function doesn't support tools.
-     *
-     * @param model The name of the AI model to use.
-     * @param autoExecute If true, automatically executes tools and continues the conversation.
-     * @param onFullToolCollected Callback invoked when a complete tool call is collected.
-     * @param onToolCall Callback invoked when a tool is executed.
-     * @param blocks DSL builder for constructing chat messages.
-     * @return A [Flow] of [ChatChunk] objects.
-     * @throws Exception if the request fails.
-     *
-     * @see ChatBuilder
-     * @see ChatChunk
-     */
-    override fun chatStreamWithTools(
-        model: String,
-        autoExecute: Boolean,
-        onFullToolCollected: ToolCapable.ToolCallCallback,
-        onToolCall: ToolCapable.ToolCallCallback,
-        blocks: ChatBuilder.() -> Unit
-    ): Flow<ChatChunk> {
-        val chat = koryChat(model, blocks)
-        return chatStreamWithTools(
-            request = chat.asChatRequest(),
-            autoExecute = autoExecute,
-            onFullToolCollected = onFullToolCollected,
-            onToolCall = onToolCall
-        )
-    }
 
     /**
      * Sends a chat request with tool support and returns a streaming response using full DSL configuration.
@@ -553,6 +532,8 @@ class OpenAIClient(
      */
     override fun chatStreamWithTools(
         autoExecute: Boolean,
+        maxSteps: Int?,
+        currentStep: Int,
         onFullToolCollected: ToolCapable.ToolCallCallback,
         onToolCall: ToolCapable.ToolCallCallback,
         block: ChatRequestBuilder.() -> Unit
@@ -560,6 +541,8 @@ class OpenAIClient(
         val request = koryChatRequest(block)
         return chatStreamWithTools(
             request = request,
+            maxSteps = maxSteps,
+            currentStep = currentStep,
             onFullToolCollected = onFullToolCollected,
             autoExecute = autoExecute,
             onToolCall = onToolCall

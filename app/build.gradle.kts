@@ -25,10 +25,6 @@ kotlin {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
         }
 
-        nativeMain.dependencies {
-            implementation("io.ktor:ktor-client-winhttp:3.4.1")
-        }
-
         jvmMain.dependencies {
             implementation(project(":kory-ktor-cio"))
         }

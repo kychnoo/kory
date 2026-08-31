@@ -1,5 +1,7 @@
 package io.kory.core.message.content.source
 
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
 import kotlin.io.encoding.Base64
 
 /**
@@ -15,7 +17,7 @@ import kotlin.io.encoding.Base64
  * - Strings starting with `data:` with `;base64,` become [Bytes].
  * - All other strings become [FilePath] (with `file://` prefix stripped).
  *
- * @throws [kotlinx.io.files.FileNotFoundException] if image not found.
+ * @throws [io.kory.core.exception.files.FileNotFoundException] if image not found.
  *
  * @sample examples.core.chat.basicChatCreationWithDsl
  */
@@ -75,7 +77,18 @@ sealed interface ImageSource {
     data class FilePath(
         val path: String,
         val mimeType: String = "image/jpeg"
-    ) : ImageSource
+    ) : ImageSource {
+        fun exists(): Boolean = SystemFileSystem.exists(Path(path))
+
+        fun onNotFound(action: () -> Unit): FilePath? {
+            return if (exists()) {
+                this
+            } else {
+                action()
+                null
+            }
+        }
+    }
 
     companion object {
         /**

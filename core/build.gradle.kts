@@ -1,20 +1,19 @@
 plugins {
     kotlin("multiplatform")
     alias(libs.plugins.kotlinPluginSerialization)
-//    alias(libs.plugins.dokka)
+    alias(libs.plugins.dokka)
 }
 
 group = "io.kory.core"
 version = "0.0.1"
 
-//dokka {
-//    dokkaSourceSets.main {
-//        samples.from(
-//            project(":examples")
-//                .file("src/main/kotlin")
-//        )
-//    }
-//}
+dokka {
+    dokkaSourceSets.commonMain {
+        samples.from(
+            rootProject.files("examples/src/commonMain/kotlin"),
+        )
+    }
+}
 
 kotlin {
     jvm()
