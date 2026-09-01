@@ -1,5 +1,7 @@
 package io.kory.openai.usages
 
+import io.kory.core.chat.usage.TokensUsage
+import io.kory.core.utils.mapper.Mapper
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -18,4 +20,13 @@ data class OpenAIUsage(
     val completionTokens: Int,
     @SerialName("total_tokens")
     val totalTokens: Int,
-)
+) : Mapper<TokensUsage> {
+    override fun map(): TokensUsage = TokensUsage(
+        inputTokens = promptTokens,
+        outputTokens = completionTokens,
+        totalTokens = totalTokens
+    )
+
+    fun toTokensUsage(): TokensUsage = map()
+
+}

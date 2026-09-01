@@ -32,7 +32,8 @@ data class OpenAIChatCompletionResponse(
     val usage: OpenAIUsage? = null,
 ) : Mapper<ChatResponse> {
     override fun map(): ChatResponse = ChatResponse(
-        choices = choices.mapDomain()
+        choices = choices.mapDomain(),
+        usage = usage?.toTokensUsage()
     )
 
     /**

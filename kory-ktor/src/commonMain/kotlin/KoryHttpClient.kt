@@ -152,7 +152,7 @@ class KoryHttpClient private constructor(
         )
     }
 
-    private suspend fun Throwable.toKoryHttpException(url: String): Throwable = when (this) {
+    private fun Throwable.toKoryHttpException(url: String): Throwable = when (this) {
         is KoryHttpException -> this
         is HttpRequestTimeoutException, is ConnectTimeoutException, is SocketTimeoutException -> KoryHttpException.Timeout(
             "Request to url $url timed out", this

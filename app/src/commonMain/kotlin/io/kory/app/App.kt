@@ -3,11 +3,11 @@ package io.kory.app
 import io.kory.app.tools.TestWeatherTool
 import io.kory.core.chat.client.ApiKey
 import io.kory.core.chat.reasoning.ReasoningConfig
+import io.kory.core.dsl.collector.collectHandler
 import io.kory.core.exception.KeyNotFoundException
 import io.kory.core.message.content.Content
 import io.kory.openai.chat.OpenAIClient
 import kotlinx.coroutines.coroutineScope
-import kotlin.text.iterator
 
 suspend fun runApp() = coroutineScope {
     val client = try {
@@ -44,27 +44,33 @@ suspend fun runApp() = coroutineScope {
         chat("openai/gpt-oss-20b") {
             user("Hello, What is the weather like in Moscow?")
         }
-    }.collect { chunk ->
-        for (choice in chunk.choices) {
-            when (val content = choice.content) {
-                is Content.Reasoning -> {
-                    isReasoning = true
-                    reasoningOutput.add(content.value)
-                }
-
-                is Content.Text -> {
-                    isReasoning = false
-                    if (content.text.isNotBlank()) {
-                        output.add(content.text)
+    }.collectHandler {
+        onChunk { chunk ->
+            for (choice in chunk.choices) {
+                when (val content = choice.content) {
+                    is Content.Reasoning -> {
+                        isReasoning = true
+                        reasoningOutput.add(content.value)
                     }
-                }
-                is Content.ToolCallDelta -> println("Tool call delta: ${content.name}")
-            }
 
-            println(if (isReasoning) "Reasoning: $reasoningOutput" else "Output: $output")
+                    is Content.Text -> {
+                        isReasoning = false
+                        if (content.text.isNotBlank()) {
+                            output.add(content.text)
+                        }
+                    }
+                    is Content.ToolCallDelta -> println("Tool call delta: ${content.name}")
+                }
+
+                println(if (isReasoning) "Reasoning: $reasoningOutput" else "Output: $output")
+            }
+        }
+        onError { error ->
+            println("${error::class.simpleName}: ${error.message}")
+        }
+        onCompleted {
+            println("Reasoning: ${reasoningOutput.joinToString("")}")
+            println("Output: ${output.joinToString("")}")
         }
     }
-
-    println("Last reasoning: ${reasoningOutput.joinToString("")}")
-    println("Last output: ${output.joinToString("")}")
 }

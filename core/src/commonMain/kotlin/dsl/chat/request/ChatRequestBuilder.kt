@@ -28,6 +28,8 @@ class ChatRequestBuilder {
     var maxTokens: Int? = null
     /** Top-K sampling parameter. `null` uses provider default. */
     var topK: Int? = null
+    /** Nucleus sampling parameter (0.0–1.0). `null` uses provider default. */
+    var topP: Double? = null
     /** Reasoning/thinking configuration. `null` disables reasoning. */
     var reasoning: ReasoningConfig? = null
 
@@ -92,6 +94,7 @@ class ChatRequestBuilder {
             temperature = temperature,
             maxTokens = maxTokens,
             topK = topK,
+            topP = topP,
             tools = toolsList,
             reasoning = reasoning,
         )

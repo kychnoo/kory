@@ -54,23 +54,6 @@ interface ToolCapable {
     ): ChatResponse
 
     /**
-     * Sends a chat request with tools using DSL-style message construction.
-     *
-     * @param model The model identifier.
-     * @param autoExecute Whether to automatically execute tool calls (default: `true`).
-     * @param onToolCall Optional callback invoked before each tool execution.
-     * @param blocks A [ChatBuilder] lambda for adding messages.
-     * @return The final [ChatResponse] after all tool calls are resolved.
-     */
-    suspend fun chatWithTools(
-        model: String,
-        autoExecute: Boolean = true,
-        maxSteps: Int? = null,
-        onToolCall: ToolCallCallback = null,
-        blocks: ChatBuilder.() -> Unit
-    ): ChatResponse
-
-    /**
      * Sends a chat request with tools using full DSL configuration.
      *
      * @param autoExecute Whether to automatically execute tool calls (default: `true`).

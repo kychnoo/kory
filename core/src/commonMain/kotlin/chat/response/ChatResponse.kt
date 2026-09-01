@@ -1,6 +1,7 @@
 package io.kory.core.chat.response
 
 import io.kory.core.chat.choice.ChatChoice
+import io.kory.core.chat.usage.TokensUsage
 import io.kory.core.message.content.Content
 import kotlinx.serialization.Serializable
 
@@ -22,4 +23,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ChatResponse(
     val choices: List<ChatChoice>,
+    val usage: TokensUsage? = null
 )

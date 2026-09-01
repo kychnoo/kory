@@ -20,13 +20,10 @@ kotlin {
             implementation(project(":core"))
             implementation(project(":openai"))
             implementation(project(":kory-ktor"))
+            implementation(project(":kory-ktor-cio"))
 
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
-        }
-
-        jvmMain.dependencies {
-            implementation(project(":kory-ktor-cio"))
         }
     }
 }

@@ -9,7 +9,9 @@ import io.kory.core.dsl.chat.ChatBuilder
 import io.kory.core.dsl.chat.koryChat
 import io.kory.core.dsl.chat.request.ChatRequestBuilder
 import io.kory.core.dsl.chat.request.koryChatRequest
+import io.kory.core.exception.tools.ToolExecutionException
 import io.kory.core.extension.content.asAssistantMessages
+import io.kory.core.extension.throwable.runCatchingCancelable
 import io.kory.core.message.Message
 import io.kory.core.message.Role
 import io.kory.core.message.content.Content
@@ -19,21 +21,29 @@ import io.kory.core.tool.capable.ToolCapable
 import io.kory.ktor.KoryHttpClient
 import io.kory.ktor.data.remote.auth.KoryAuth
 import io.kory.ktor.data.remote.config.KoryHttpClientConfig
+import io.kory.ktor.exception.KoryHttpException
 import io.kory.openai.api.OpenAIChatCompletionRequest
 import io.kory.openai.api.OpenAIChatCompletionResponse
 import io.kory.openai.api.model.OpenAIModelListResponse
 import io.kory.openai.chat.chunk.OpenAIChatCompletionChunk
+import io.kory.openai.error.OpenAIErrorResponse
+import io.kory.openai.exception.OpenAIException
 import io.kory.openai.extension.chat.toOpenAIChatCompletionRequest
+import io.kory.openai.extension.exception.toException
 import io.kory.openai.extension.toModels
 import io.kory.openai.json.json
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonObject
+import kotlin.getOrElse
 
 private class PartialToolCallAccumulator(
     val index: Int,
@@ -50,7 +60,9 @@ private class PartialToolCallAccumulator(
  *
  * @param apiKey The API key for authentication.
  * @param baseUrl The base URL of the API (default: `"https://api.openai.com/v1"`).
- * @param httpClient The HTTP client to use. Defaults to a CIO-based client with Bearer auth.
+ * @param httpClient The HTTP client to use. Defaults to a platform-appropriate client:
+ * on JVM, the available engine is loaded via ServiceLoader; on Native, the default
+ * system engine is used. Bearer authentication is automatically applied.
  *
  * @sample examples.openai.client.openAIClientCreation
  * @sample examples.openai.chat.basicChatCall
@@ -81,22 +93,30 @@ class OpenAIClient(
      *
      * @param request The OpenAI-specific request.
      * @return The raw OpenAI response.
-     * @throws RuntimeException if the API returns a non-2xx status.
+     * @throws KoryHttpException if the request fails.
+     * @throws OpenAIException if OpenAI API returns an error.
      */
     suspend fun chat(request: OpenAIChatCompletionRequest): OpenAIChatCompletionResponse = withContext(Dispatchers.Default) {
-        val response = client.post(
-            "chat/completions",
-            json.encodeToString(request)
-        )
+        runCatchingCancelable {
+            val response = client.post(
+                "chat/completions",
+                json.encodeToString(request)
+            )
 
-        if (response.status !in 200..299) {
-            println(response.body.decodeToString())
-            throw RuntimeException("Error during chat completion")
+            json.decodeFromString<OpenAIChatCompletionResponse>(
+                response.body.decodeToString()
+            )
+        }.getOrElse { th ->
+            throw when (th) {
+                is KoryHttpException.HttpStatus -> {
+                    if (th.body.isEmpty()) throw th
+                    runCatching {
+                        json.decodeFromString<OpenAIErrorResponse>(th.body.decodeToString()).toException(th.status)
+                    }.getOrDefault(th)
+                }
+                else -> th
+            }
         }
-
-        json.decodeFromString<OpenAIChatCompletionResponse>(
-            response.body.decodeToString()
-        )
     }
 
     /**
@@ -105,7 +125,8 @@ class OpenAIClient(
      * @param request A fully configured [ChatRequest] containing the chat, model parameters,
      *   and optional tools.
      * @return A [ChatResponse] with one or more [io.kory.core.chat.choice.ChatChoice] objects.
-     * @throws Exception if the request fails (provider-specific).
+     * @throws KoryHttpException if the request fails.
+     * @throws io.kory.core.exception.KoryProviderException if provider returns an error.
      *
      * @see ChatRequest
      * @see ChatResponse
@@ -113,7 +134,14 @@ class OpenAIClient(
      * @sample examples.openai.client.sendToChatWithChatRequest
      */
     override suspend fun chat(request: ChatRequest): ChatResponse {
-        return chat(request.toOpenAIChatCompletionRequest()).toChatResponse()
+        runCatchingCancelable {
+            return chat(request.toOpenAIChatCompletionRequest()).toChatResponse()
+        }.getOrElse { th ->
+            throw when (th) {
+                is OpenAIException -> th.toKoryProviderException()
+                else -> th
+            }
+        }
     }
 
     /**
@@ -126,7 +154,8 @@ class OpenAIClient(
      *   Use [ChatBuilder.system], [ChatBuilder.user], [ChatBuilder.assistant],
      *   and [ChatBuilder.tool] to add messages.
      * @return A [ChatResponse] containing one or more [io.kory.core.chat.choice.ChatChoice] objects.
-     * @throws Exception if the request fails (invalid model, network issues, etc.).
+     * @throws KoryHttpException if the request fails.
+     * @throws io.kory.core.exception.KoryProviderException if provider returns an error.
      *
      * @see ChatBuilder
      * @see ChatResponse
@@ -144,7 +173,8 @@ class OpenAIClient(
      * @param block DSL builder for configuring the full request including messages,
      *   temperature, maxTokens, tools, and reasoning.
      * @return A [ChatResponse] containing one or more [io.kory.core.chat.choice.ChatChoice] objects.
-     * @throws Exception if the request fails.
+     * @throws KoryHttpException if the request fails.
+     * @throws io.kory.core.exception.KoryProviderException if provider returns an error.
      *
      * @see ChatRequestBuilder
      * @see ChatResponse
@@ -163,14 +193,30 @@ class OpenAIClient(
      *
      * @param request The OpenAI-specific request.
      * @return A [Flow] of raw OpenAI streaming chunks.
+     * @throws OpenAIException if the OpenAI API returns an error.
+     * @throws KoryHttpException if the HTTP request fails (timeout, network, etc.).
      */
     fun chatStream(request: OpenAIChatCompletionRequest): Flow<OpenAIChatCompletionChunk> = flow {
         val streamRequest = request.stream()
 
-        client.streamPost(
-            "chat/completions",
-            json.encodeToString(streamRequest)
-        ).collect { line ->
+        val lineFlow = runCatchingCancelable {
+            client.streamPost(
+                "chat/completions",
+                json.encodeToString(streamRequest)
+            )
+        }.getOrElse { th ->
+            throw when (th) {
+                is KoryHttpException.HttpStatus -> {
+                    if (th.body.isEmpty()) throw th
+                    runCatching {
+                        json.decodeFromString<OpenAIErrorResponse>(th.body.decodeToString()).toException(th.status)
+                    }.getOrDefault(th)
+                }
+                else -> th
+            }
+        }
+
+        lineFlow.collect { line ->
             if (line.isBlank() || !line.startsWith("data:")) {
                 return@collect
             }
@@ -181,6 +227,20 @@ class OpenAIClient(
 
             if (data == "[DONE]") {
                 return@collect
+            }
+
+            val jsonObject = json.parseToJsonElement(data).jsonObject
+
+            if ("error" in jsonObject) {
+                val error = json.decodeFromJsonElement<OpenAIErrorResponse>(jsonObject)
+
+                throw OpenAIException(
+                    status = 200,
+                    type = error.error.type,
+                    param = error.error.param,
+                    code = error.error.code,
+                    message = error.error.message,
+                )
             }
 
             val chunk = json.decodeFromString<OpenAIChatCompletionChunk>(data)
@@ -195,14 +255,22 @@ class OpenAIClient(
      *   model parameters, and optional tools.
      * @return A [Flow] of [ChatChunk] objects, each containing a piece of the
      *   streaming response (text, reasoning, or tool call deltas).
-     * @throws Exception if the request fails.
+     * @throws io.kory.core.exception.KoryProviderException if the API returns a provider-specific error.
+     * @throws KoryHttpException if the HTTP request fails (timeout, network, JSON parsing, etc.).
      *
      * @see ChatRequest
      * @see ChatChunk
      * @sample examples.openai.client.sendToChatStreamWithRequest
      */
     override fun chatStream(request: ChatRequest): Flow<ChatChunk> {
-         return chatStream(request.toOpenAIChatCompletionRequest()).map { it.toChatChunk() }
+         return chatStream(request.toOpenAIChatCompletionRequest())
+             .map { it.toChatChunk() }
+             .catch { th ->
+                 throw when (th) {
+                     is OpenAIException -> th.toKoryProviderException()
+                     else -> th
+                 }
+             }
     }
 
     /**
@@ -211,7 +279,8 @@ class OpenAIClient(
      * @param model The name of the AI model to use.
      * @param blocks DSL builder for constructing chat messages.
      * @return A [Flow] of [ChatChunk] objects.
-     * @throws Exception if the request fails.
+     * @throws io.kory.core.exception.KoryProviderException if the API returns a provider-specific error.
+     * @throws KoryHttpException if the HTTP request fails (timeout, network, JSON parsing, etc.).
      *
      * @see ChatBuilder
      * @see ChatChunk
@@ -227,7 +296,8 @@ class OpenAIClient(
      *
      * @param block DSL builder for configuring messages, temperature, maxTokens, tools, etc.
      * @return A [Flow] of [ChatChunk] objects.
-     * @throws Exception if the request fails.
+     * @throws io.kory.core.exception.KoryProviderException if the API returns a provider-specific error.
+     * @throws KoryHttpException if the HTTP request fails (timeout, network, JSON parsing, etc.).
      *
      * @see ChatRequestBuilder
      * @see ChatChunk
@@ -259,7 +329,7 @@ class OpenAIClient(
      * Retrieves the list of available models from the OpenAI API.
      *
      * @return A list of [Model] objects.
-     * @throws Exception if the API request fails.
+     * @throws KoryHttpException if the API request fails.
      *
      * @see Model
      */
@@ -269,12 +339,22 @@ class OpenAIClient(
         toolCall: Content.ToolCall,
         toolMap: Map<String, KoryTool<*, *>>
     ): String = withContext(Dispatchers.Default) {
-        val tool = toolMap[toolCall.name] ?: return@withContext "Model requested unknown tool: ${toolCall.name}"
+        val tool = toolMap[toolCall.name]
+            ?: throw ToolExecutionException(
+                toolName = toolCall.name,
+                argumentsJson = toolCall.argumentsJson,
+                message = "Tool '${toolCall.name}' is not registered.",
+            )
 
-        try {
+        runCatchingCancelable {
             tool.executeRaw(requireNotNull(toolCall.argumentsJson))
-        } catch (e: Exception) {
-            "Error executing tool ${toolCall.name}: ${e.message ?: e::class.simpleName ?: "unknown error"}"
+        }.getOrElse { th ->
+            throw ToolExecutionException(
+                toolName = toolCall.name,
+                argumentsJson = toolCall.argumentsJson,
+                message = "Error executing tool ${toolCall.name}: ${th.message ?: th::class.simpleName ?: "unknown error"}",
+                cause = th
+            )
         }
     }
 
@@ -288,7 +368,9 @@ class OpenAIClient(
      * @param autoExecute If true, automatically executes tools and continues the conversation.
      * @param onToolCall Callback invoked when a tool is called (name, argumentsJson).
      * @return A [ChatResponse] with the final response.
-     * @throws Exception if the request fails.
+     * @throws KoryHttpException if the request fails.
+     * @throws io.kory.core.exception.KoryProviderException if provider returns an error.
+     * @throws ToolExecutionException if there are errors in running the tools.
      *
      * @see ChatRequest
      * @see ChatResponse
@@ -352,42 +434,15 @@ class OpenAIClient(
     }
 
     /**
-     * This function doesn't support tools.
-     *
-     * @param model The name of the AI model to use.
-     * @param autoExecute If true, automatically executes tools and continues the conversation.
-     * @param onToolCall Callback invoked when a tool is called.
-     * @param blocks DSL builder for constructing chat messages.
-     * @return A [ChatResponse] with the final response.
-     * @throws Exception if the request fails.
-     *
-     * @see ChatBuilder
-     * @see ChatResponse
-     */
-    override suspend fun chatWithTools(
-        model: String,
-        autoExecute: Boolean,
-        maxSteps: Int?,
-        onToolCall: ToolCapable.ToolCallCallback,
-        blocks: ChatBuilder.() -> Unit
-    ): ChatResponse {
-        val chat = koryChat(model, blocks)
-        return chatWithTools(
-            request = chat.asChatRequest(),
-            maxSteps = maxSteps,
-            autoExecute = autoExecute,
-            onToolCall = onToolCall
-        )
-    }
-
-    /**
      * Sends a chat request with tool support using full DSL configuration.
      *
      * @param autoExecute If true, automatically executes tools and continues the conversation.
      * @param onToolCall Callback invoked when a tool is called.
      * @param block DSL builder for configuring messages, temperature, maxTokens, tools, etc.
      * @return A [ChatResponse] with the final response.
-     * @throws Exception if the request fails.
+     * @throws KoryHttpException if the request fails.
+     * @throws io.kory.core.exception.KoryProviderException if provider returns an error.
+     * @throws ToolExecutionException if there are errors in running the tools.
      *
      * @see ChatRequestBuilder
      * @see ChatResponse
@@ -419,7 +474,9 @@ class OpenAIClient(
      * @param onFullToolCollected Callback invoked when a complete tool call is collected.
      * @param onToolCall Callback invoked when a tool is executed.
      * @return A [Flow] of [ChatChunk] objects.
-     * @throws Exception if the request fails.
+     * @throws io.kory.core.exception.KoryProviderException if the API returns a provider-specific error.
+     * @throws KoryHttpException if the HTTP request fails (timeout, network, JSON parsing, etc.).
+     * @throws ToolExecutionException if there are errors in running the tools.
      *
      * @see ChatRequest
      * @see ChatChunk
@@ -524,7 +581,8 @@ class OpenAIClient(
      * @param onToolCall Callback invoked when a tool is executed.
      * @param block DSL builder for configuring messages, temperature, maxTokens, tools, etc.
      * @return A [Flow] of [ChatChunk] objects.
-     * @throws Exception if the request fails.
+     * @throws io.kory.core.exception.KoryProviderException if the API returns a provider-specific error.
+     * @throws KoryHttpException if the HTTP request fails (timeout, network, JSON parsing, etc.).
      *
      * @see ChatRequestBuilder
      * @see ChatChunk

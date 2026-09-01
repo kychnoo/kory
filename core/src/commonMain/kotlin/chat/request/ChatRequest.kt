@@ -13,9 +13,11 @@ import kotlinx.serialization.Transient
  * [Chat.asChatRequest][io.kory.core.chat.Chat.asChatRequest].
  *
  * @property chat The conversation containing messages and model name.
+ * @param choicesCount Number of response choices to generate.
  * @property temperature Sampling temperature (0.0–2.0). `null` uses provider default.
  * @property maxTokens Maximum tokens to generate. `null` uses provider default.
  * @property topK Top-K sampling parameter. `null` uses provider default.
+ * @param topP Nucleus sampling parameter (0.0–1.0). `null` uses provider default.
  * @property reasoning Reasoning/thinking configuration. `null` disables reasoning.
  * @property tools List of [KoryTool] instances available to the model. Not serialized.
  *
@@ -34,6 +36,7 @@ data class ChatRequest(
     val temperature: Double? = null,
     val maxTokens: Int? = null,
     val topK: Int? = null,
+    val topP: Double? = null,
     val reasoning: ReasoningConfig? = null,
     @Transient val tools: List<KoryTool<*, *>> = emptyList(),
     private val stream: Boolean = false
