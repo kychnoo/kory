@@ -1,5 +1,6 @@
 package examples.core.chat.content.source
 
+import io.kory.core.files.MimeType
 import io.kory.core.message.content.source.ImageSource
 import kotlinx.io.files.FileNotFoundException
 import java.io.File
@@ -8,7 +9,7 @@ import java.io.File
 fun createSourceFromPath() {
     // Create an image from FilePath.
     val imageSource =
-        ImageSource.FilePath(path = "path/to/photo.jpg", mimeType = "image/png") // Default mime type is image/jpeg.
+        ImageSource.FilePath(path = "path/to/photo.png", mimeType = MimeType.Image.Png) // By default, the MIME type is detected based on the file extension.
             .takeIf { it.exists() }
 
     imageSource.let { image ->

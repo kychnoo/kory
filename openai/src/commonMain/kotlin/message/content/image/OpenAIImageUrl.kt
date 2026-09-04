@@ -1,4 +1,4 @@
-package io.kory.openai.message.content
+package io.kory.openai.message.content.image
 
 import io.kory.core.extension.process
 import io.kory.core.message.content.source.ImageSource
@@ -17,7 +17,7 @@ data class OpenAIImageUrl(
 ) {
     companion object {
         /**
-         * Creates an [OpenAIImageUrl] from an [ImageSource].
+         * Creates an [OpenAIImageUrl] from an [io.kory.core.message.content.source.ImageSource].
          *
          * @param imageSource The image source to convert.
          * @return An [OpenAIImageUrl] with the processed URL.

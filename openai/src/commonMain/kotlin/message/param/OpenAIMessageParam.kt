@@ -1,6 +1,8 @@
-package io.kory.openai.message
+package io.kory.openai.message.param
 
+import io.kory.core.message.Role
 import io.kory.openai.message.content.OpenAIChatCompletionContent
+import io.kory.openai.serializer.message.OpenAIMessageParamCustomSerializer
 import io.kory.openai.tool.OpenAIToolCall
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
@@ -74,5 +76,11 @@ sealed interface OpenAIMessageParam {
         val content: OpenAIChatCompletionContent,
         @SerialName("tool_call_id") val toolCallId: String,
         val name: String? = null
+    ) : OpenAIMessageParam
+
+    @Serializable(with = OpenAIMessageParamCustomSerializer::class)
+    data class Custom(
+        val role: Role,
+        val content: OpenAIChatCompletionContent,
     ) : OpenAIMessageParam
 }

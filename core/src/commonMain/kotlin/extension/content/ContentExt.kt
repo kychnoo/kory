@@ -7,16 +7,16 @@ import io.kory.core.message.content.Content
 /**
  * Wraps this request content as an assistant [Message].
  *
- * @return A [Message] with [Role.ASSISTANT] and this content.
+ * @return A [Message] with [Role.Assistant] and this content.
  */
 fun Content.Request.asAssistantMessage(): Message {
-    return Message(role = Role.ASSISTANT, content = this)
+    return Message(role = Role.Assistant, content = this)
 }
 
 /**
  * Maps a list of request contents to assistant messages.
  *
- * @return A list of [Message] objects, each with [Role.ASSISTANT].
+ * @return A list of [Message] objects, each with [Role.Assistant].
  *
  * @see io.kory.core.chat.Chat
  * @see io.kory.core.chat.Chat.asChatRequest

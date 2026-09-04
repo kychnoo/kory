@@ -13,9 +13,9 @@ internal class ChatExtTest {
     fun testAddMessages() {
         val chat = Chat(
             model = "gpt-4",
-            messages = listOf(Message(Role.USER, Content.Text("hello")))
+            messages = listOf(Message(Role.User, Content.Text("hello")))
         )
-        val newMessages = listOf(Message(Role.ASSISTANT, Content.Text("hi")))
+        val newMessages = listOf(Message(Role.Assistant, Content.Text("hi")))
         val updated = chat.addMessages(newMessages)
 
         assertEquals(2, updated.messages.size)

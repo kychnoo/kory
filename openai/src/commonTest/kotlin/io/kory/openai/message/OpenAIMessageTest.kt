@@ -1,8 +1,6 @@
 package io.kory.openai.message
 
 import io.kory.core.message.Role
-import io.kory.openai.tool.OpenAIFunctionCall
-import io.kory.openai.tool.OpenAIToolCall
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -12,7 +10,7 @@ internal class OpenAIMessageTest {
     @Test
     fun testEffectiveReasoningFromReasoningContent() {
         val msg = OpenAIMessage(
-            role = Role.ASSISTANT,
+            role = Role.Assistant,
             content = null,
             reasoningContent = "reasoning via reasoningContent",
             reasoning = null,
@@ -23,7 +21,7 @@ internal class OpenAIMessageTest {
     @Test
     fun testEffectiveReasoningFromReasoning() {
         val msg = OpenAIMessage(
-            role = Role.ASSISTANT,
+            role = Role.Assistant,
             content = null,
             reasoningContent = null,
             reasoning = "reasoning via reasoning",
@@ -34,7 +32,7 @@ internal class OpenAIMessageTest {
     @Test
     fun testEffectiveReasoningPriority() {
         val msg = OpenAIMessage(
-            role = Role.ASSISTANT,
+            role = Role.Assistant,
             content = null,
             reasoningContent = "primary",
             reasoning = "secondary",
@@ -44,7 +42,7 @@ internal class OpenAIMessageTest {
 
     @Test
     fun testEffectiveReasoningNull() {
-        val msg = OpenAIMessage(role = Role.ASSISTANT, content = null)
+        val msg = OpenAIMessage(role = Role.Assistant, content = null)
         assertNull(msg.effectiveReasoning)
     }
 }

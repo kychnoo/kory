@@ -3,7 +3,7 @@ package io.kory.openai.extension
 import io.kory.core.message.Message
 import io.kory.core.message.Role
 import io.kory.core.message.content.Content
-import io.kory.openai.message.OpenAIMessageParam
+import io.kory.openai.message.param.OpenAIMessageParam
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -13,17 +13,17 @@ internal class MessageExtOpenAITest {
 
     @Test
     fun testToOpenAIMessage() {
-        val message = Message(Role.USER, Content.Text("hello"))
+        val message = Message(Role.User, Content.Text("hello"))
         val result = message.toOpenAIMessage()
 
-        assertEquals(Role.USER, result.role)
+        assertEquals(Role.User, result.role)
         assertNotNull(result.content)
         assertTrue(result.content is io.kory.openai.message.content.OpenAIChatCompletionContent.Text)
     }
 
     @Test
     fun testToOpenAIMessageParamUser() {
-        val message = Message(Role.USER, Content.Text("hello"))
+        val message = Message(Role.User, Content.Text("hello"))
         val result = message.toOpenAIMessageParam()
 
         assertTrue(result is OpenAIMessageParam.User)
@@ -31,7 +31,7 @@ internal class MessageExtOpenAITest {
 
     @Test
     fun testToOpenAIMessageParamSystem() {
-        val message = Message(Role.SYSTEM, Content.Text("prompt"))
+        val message = Message(Role.System, Content.Text("prompt"))
         val result = message.toOpenAIMessageParam()
 
         assertTrue(result is OpenAIMessageParam.System)
@@ -39,7 +39,7 @@ internal class MessageExtOpenAITest {
 
     @Test
     fun testToOpenAIMessageParamAssistant() {
-        val message = Message(Role.ASSISTANT, Content.Text("response"))
+        val message = Message(Role.Assistant, Content.Text("response"))
         val result = message.toOpenAIMessageParam()
 
         assertTrue(result is OpenAIMessageParam.Assistant)
@@ -48,7 +48,7 @@ internal class MessageExtOpenAITest {
     @Test
     fun testToOpenAIMessageParamAssistantToolCall() {
         val message = Message(
-            Role.ASSISTANT,
+            Role.Assistant,
             Content.ToolCall(id = "call_1", name = "search", argumentsJson = """{"q":"test"}""")
         )
         val result = message.toOpenAIMessageParam()
@@ -62,7 +62,7 @@ internal class MessageExtOpenAITest {
     @Test
     fun testToOpenAIMessageParamTool() {
         val message = Message(
-            Role.TOOL,
+            Role.Tool,
             Content.ToolResult(toolCallId = "call_1", name = "search", content = "result")
         )
         val result = message.toOpenAIMessageParam()
@@ -74,8 +74,8 @@ internal class MessageExtOpenAITest {
     @Test
     fun testToOpenAIMessageParamList() {
         val messages = listOf(
-            Message(Role.USER, Content.Text("q1")),
-            Message(Role.ASSISTANT, Content.Text("a1")),
+            Message(Role.User, Content.Text("q1")),
+            Message(Role.Assistant, Content.Text("a1")),
         )
         val result = messages.toOpenAIMessageParamList()
 
@@ -85,8 +85,8 @@ internal class MessageExtOpenAITest {
     @Test
     fun testToOpenAIMessageList() {
         val messages = listOf(
-            Message(Role.USER, Content.Text("q1")),
-            Message(Role.ASSISTANT, Content.Text("a1")),
+            Message(Role.User, Content.Text("q1")),
+            Message(Role.Assistant, Content.Text("a1")),
         )
         val result = messages.toOpenAIMessageList()
 

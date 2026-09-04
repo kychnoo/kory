@@ -1,5 +1,7 @@
 package io.kory.core.message.content.source
 
+import io.kory.core.exception.files.UnsupportedMimeTypeException
+import io.kory.core.files.MimeType
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import kotlin.io.encoding.Base64
@@ -44,8 +46,16 @@ sealed interface ImageSource {
      */
     data class Bytes(
         val bytes: ByteArray,
-        val mimeType: String = "image/jpeg"
+        val mimeType: MimeType = MimeType.Image.Jpeg
     ) : ImageSource {
+        init {
+            if (!mimeType.isImage) {
+                throw UnsupportedMimeTypeException(
+                    mimeType = this.mimeType,
+                    message = "Expected Image MIME type (image/*)"
+                )
+            }
+        }
 
         override fun hashCode(): Int {
             var result = bytes.contentHashCode()
@@ -76,8 +86,17 @@ sealed interface ImageSource {
      */
     data class FilePath(
         val path: String,
-        val mimeType: String = "image/jpeg"
+        val mimeType: MimeType = MimeType.tryDetect(path)
     ) : ImageSource {
+        init {
+            if (!mimeType.isImage) {
+                throw UnsupportedMimeTypeException(
+                    mimeType = this.mimeType,
+                    message = "Expected Image MIME type (image/*)"
+                )
+            }
+        }
+
         fun exists(): Boolean = SystemFileSystem.exists(Path(path))
 
         fun onNotFound(action: () -> Unit): FilePath? {
@@ -112,7 +131,7 @@ sealed interface ImageSource {
                 val data = source.substringAfter(";base64,")
                 val rawBytes = Base64.decode(data)
 
-                Bytes(bytes = rawBytes, mimeType = mimeType)
+                Bytes(bytes = rawBytes, mimeType = MimeType(mimeType))
             }
 
             else -> {

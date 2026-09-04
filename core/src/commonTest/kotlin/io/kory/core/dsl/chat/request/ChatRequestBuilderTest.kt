@@ -2,7 +2,6 @@ package io.kory.core.dsl.chat.request
 
 import io.kory.core.chat.reasoning.ReasoningConfig
 import io.kory.core.message.Role
-import io.kory.core.message.content.Content
 import io.kory.core.tool.KoryTool
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.serializer
@@ -33,7 +32,7 @@ internal class ChatRequestBuilderTest {
         assertEquals("gpt-4", request.chat.model)
         assertEquals(0.7, request.temperature)
         assertEquals(1, request.chat.messages.size)
-        assertEquals(Role.USER, request.chat.messages[0].role)
+        assertEquals(Role.User, request.chat.messages[0].role)
     }
 
     @Test

@@ -4,7 +4,7 @@ import io.kory.core.message.Message
 import io.kory.core.message.Role
 import io.kory.core.message.content.Content
 import io.kory.openai.message.OpenAIMessage
-import io.kory.openai.message.OpenAIMessageParam
+import io.kory.openai.message.param.OpenAIMessageParam
 import io.kory.openai.message.content.OpenAIChatCompletionContent
 import io.kory.openai.tool.OpenAIFunctionCall
 import io.kory.openai.tool.OpenAIToolCall
@@ -23,24 +23,24 @@ fun Message.toOpenAIMessage(): OpenAIMessage = OpenAIMessage(
  * Converts a core [Message] to the appropriate [OpenAIMessageParam] subtype.
  *
  * Mapping:
- * - [Role.USER] → [OpenAIMessageParam.User]
- * - [Role.SYSTEM] → [OpenAIMessageParam.System]
- * - [Role.ASSISTANT] → [OpenAIMessageParam.Assistant] (with tool calls if [Content.ToolCall])
- * - [Role.TOOL] → [OpenAIMessageParam.Tool]
+ * - [Role.User] → [OpenAIMessageParam.User]
+ * - [Role.System] → [OpenAIMessageParam.System]
+ * - [Role.Assistant] → [OpenAIMessageParam.Assistant] (with tool calls if [Content.ToolCall])
+ * - [Role.Tool] → [OpenAIMessageParam.Tool]
  *
  * @return The corresponding [OpenAIMessageParam].
  * @throws IllegalStateException if the content type doesn't match the role.
  */
 fun Message.toOpenAIMessageParam(): OpenAIMessageParam = when (this.role) {
-    Role.USER -> OpenAIMessageParam.User(
+    Role.User -> OpenAIMessageParam.User(
         content = this.content.toOpenAIContent() ?: error("User message must contain text or parts")
     )
 
-    Role.SYSTEM -> OpenAIMessageParam.System(
+    Role.System -> OpenAIMessageParam.System(
         content = this.content.toOpenAIContent() ?: error("System message must contain text or parts")
     )
 
-    Role.ASSISTANT -> when (val content = this.content) {
+    Role.Assistant -> when (val content = this.content) {
         is Content.ToolCall -> OpenAIMessageParam.Assistant(
             content = null,
             toolCalls = listOf(
@@ -60,7 +60,7 @@ fun Message.toOpenAIMessageParam(): OpenAIMessageParam = when (this.role) {
         )
     }
 
-    Role.TOOL -> {
+    Role.Tool -> {
         val toolResult = this.content as? Content.ToolResult
             ?: error("Message with role TOOL must contain Content.ToolResult")
 
@@ -70,6 +70,11 @@ fun Message.toOpenAIMessageParam(): OpenAIMessageParam = when (this.role) {
             name = toolResult.name
         )
     }
+
+    else -> OpenAIMessageParam.Custom(
+        role = this.role,
+        content = this.content.toOpenAIContent() ?: error("Unsupported content")
+    )
 }
 
 /**

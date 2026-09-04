@@ -33,22 +33,22 @@ fun processMessageRoles() {
         model = "gpt-5.6-sol",
         messages = listOf(
             Message(
-                role = Role.SYSTEM,
+                role = Role.System,
                 content = Content.Text("You are helpful assistant.")
             ),
             Message(
-                role = Role.USER,
+                role = Role.User,
                 content = Content.Text("Hello, What is the weather like in London?")
             ),
             Message(
-                role = Role.TOOL,
+                role = Role.Tool,
                 content = Content.ToolResult(
                     toolCallId = "tool_call_id_1",
                     name = "get_weather",
                     content = "Current weather in London is Sunny.")
             ),
             Message(
-                role = Role.ASSISTANT,
+                role = Role.Assistant,
                 content = Content.Text("Hello, current weather in **London** is sunny. Have a nice day :)")
             )
         )

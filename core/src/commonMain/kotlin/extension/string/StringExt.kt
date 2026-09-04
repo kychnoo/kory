@@ -37,26 +37,26 @@ fun String.parseThinkContent(): List<Content.Response> {
 /**
  * Wraps this string as a system [Message].
  *
- * @return A [Message] with [Role.SYSTEM] and [Content.Text] content.
+ * @return A [Message] with [Role.System] and [Content.Text] content.
  *
  * @sample examples.core.extensions.useAsRoleMessage
  */
-fun String.asSystemMessage() = Message(Role.SYSTEM, Content.Text(this))
+fun String.asSystemMessage() = Message(Role.System, Content.Text(this))
 
 /**
  * Wraps this string as a user [Message].
  *
- * @return A [Message] with [Role.USER] and [Content.Text] content.
+ * @return A [Message] with [Role.User] and [Content.Text] content.
  *
  * @sample examples.core.extensions.useAsRoleMessage
  */
-fun String.asUserMessage() = Message(Role.USER, Content.Text(this))
+fun String.asUserMessage() = Message(Role.User, Content.Text(this))
 
 /**
  * Wraps this string as an assistant [Message].
  *
- * @return A [Message] with [Role.ASSISTANT] and [Content.Text] content.
+ * @return A [Message] with [Role.Assistant] and [Content.Text] content.
  *
  * @sample examples.core.extensions.useAsRoleMessage
  */
-fun String.asAssistantMessage() = Message(Role.ASSISTANT, Content.Text(this))
+fun String.asAssistantMessage() = Message(Role.Assistant, Content.Text(this))

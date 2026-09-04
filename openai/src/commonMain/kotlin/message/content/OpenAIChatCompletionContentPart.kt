@@ -3,6 +3,7 @@ package io.kory.openai.message.content
 import io.kory.core.message.content.ContentPart
 import io.kory.core.message.content.source.ImageSource
 import io.kory.core.utils.mapper.Mapper
+import io.kory.openai.message.content.image.OpenAIImageUrl
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

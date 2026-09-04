@@ -35,15 +35,15 @@ fun basicChatCreationWithoutDsl() {
         // Messages: List<Message>(required)
         messages = listOf(
             Message(
-                role = Role.USER,
+                role = Role.User,
                 content = Content.Text("Hello, what's your name?")
             ),
             Message(
-                role = Role.ASSISTANT,
+                role = Role.Assistant,
                 content = Content.Text("Hello, i'm ChatGPT sol. How can I help?")
             ),
             Message(
-                role = Role.USER,
+                role = Role.User,
                 // Parts. List<ContentPart>(Required)
                 content = Content.Parts(
                     listOf(

@@ -4,7 +4,7 @@ import io.kory.core.message.content.Content
 import io.kory.core.message.content.ContentPart
 import io.kory.openai.message.content.OpenAIChatCompletionContent
 import io.kory.openai.message.content.OpenAIChatCompletionContentPart
-import io.kory.openai.message.content.OpenAIImageUrl
+import io.kory.openai.message.content.image.OpenAIImageUrl
 
 /**
  * Converts a core [Content.Request] to an OpenAI content type.

@@ -12,7 +12,7 @@ import io.kory.openai.tool.OpenAiChatCompletionFunctionTool
  * Converts a core [ChatRequest] to an [OpenAIChatCompletionRequest].
  *
  * Maps:
- * - Chat messages → [OpenAIMessageParam][io.kory.openai.message.OpenAIMessageParam] list
+ * - Chat messages → [OpenAIMessageParam][io.kory.openai.message.param.OpenAIMessageParam] list
  * - Tools → [OpenAiChatCompletionFunctionTool] list with JSON Schema parameters
  * - Reasoning config → [OpenAIReasoningEffort][io.kory.openai.reasoning.OpenAIReasoningEffort]
  *

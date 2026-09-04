@@ -12,24 +12,24 @@ class ChatBuilder(val modelName: String) {
     private val messages = mutableListOf<Message>()
 
     fun system(text: String) {
-        messages.add(Message(Role.SYSTEM, Content.Text(text)))
+        messages.add(Message(Role.System, Content.Text(text)))
     }
 
     fun assistant(text: String) {
-        messages.add(Message(Role.ASSISTANT, Content.Text(text)))
+        messages.add(Message(Role.Assistant, Content.Text(text)))
     }
 
     fun user(text: String) {
-        messages.add(Message(Role.USER, Content.Text(text)))
+        messages.add(Message(Role.User, Content.Text(text)))
     }
 
     fun user(block: ContentBuilder.() -> Unit) {
         val content = ContentBuilder().apply(block).build()
-        messages.add(Message(Role.USER, content))
+        messages.add(Message(Role.User, content))
     }
 
     fun tool(text: String) {
-        messages.add(Message(Role.TOOL, Content.Text(text)))
+        messages.add(Message(Role.Tool, Content.Text(text)))
     }
 
     internal fun build(): Chat = Chat(

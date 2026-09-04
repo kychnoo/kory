@@ -32,7 +32,6 @@ import io.kory.openai.extension.chat.toOpenAIChatCompletionRequest
 import io.kory.openai.extension.exception.toException
 import io.kory.openai.extension.toModels
 import io.kory.openai.json.json
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -407,7 +406,7 @@ class OpenAIClient(
             for (choice in response.choices) {
                 for (content in choice.contents) {
                     if (content is Content.Request) {
-                        messages.add(Message(role = Role.ASSISTANT, content = content))
+                        messages.add(Message(role = Role.Assistant, content = content))
                     }
                 }
 
@@ -418,7 +417,7 @@ class OpenAIClient(
 
                     messages.add(
                         Message(
-                            role = Role.TOOL,
+                            role = Role.Tool,
                             content = Content.ToolResult(
                                 toolCallId = call.id,
                                 content = result,
@@ -539,7 +538,7 @@ class OpenAIClient(
                 if (assistantTextBuilder.isNotEmpty()) {
                     messages.add(
                         Message(
-                            role = Role.ASSISTANT,
+                            role = Role.Assistant,
                             content = Content.Text(assistantTextBuilder.toString())
                         )
                     )
@@ -554,7 +553,7 @@ class OpenAIClient(
 
                     messages.add(
                         Message(
-                            role = Role.TOOL,
+                            role = Role.Tool,
                             content = Content.ToolResult(
                                 toolCallId = call.id,
                                 content = result,

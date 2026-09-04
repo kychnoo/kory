@@ -1,6 +1,5 @@
 package examples.core.chat.content
 
-import io.kory.core.extension.content.asAssistantMessage
 import io.kory.core.extension.content.asRequestContents
 import io.kory.core.extension.message.asChat
 import io.kory.core.message.Message
@@ -10,7 +9,7 @@ import io.kory.core.message.content.Content
 fun createMessageWithTextContent() {
     // Create a message with text content.
     val message = Message(
-        role = Role.USER,
+        role = Role.User,
         content = Content.Text("Hello, how are you?")
     )
 }
@@ -37,15 +36,15 @@ fun createRequestContent(modelName: String) {
     // Work with request content.
     val chat = listOf<Message>(
         Message(
-            role = Role.USER,
+            role = Role.User,
             content = Content.Text("Ping!")
         ),
         Message(
-            role = Role.ASSISTANT,
+            role = Role.Assistant,
             content = Content.Text("Pong!")
         ),
         Message(
-            role = Role.USER,
+            role = Role.User,
             content = Content.Text("How are you?")
         ),
         //If you try to use Content.Reasoning inside a Message, you'll get a compiler error:

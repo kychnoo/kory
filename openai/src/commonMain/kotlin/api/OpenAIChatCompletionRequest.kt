@@ -1,6 +1,6 @@
 package io.kory.openai.api
 
-import io.kory.openai.message.OpenAIMessageParam
+import io.kory.openai.message.param.OpenAIMessageParam
 import io.kory.openai.reasoning.OpenAIReasoningEffort
 import io.kory.openai.tool.OpenAiChatCompletionFunctionTool
 import kotlinx.serialization.SerialName
