@@ -24,7 +24,8 @@ import kotlinx.coroutines.flow.Flow
  */
 interface ToolCapable {
     /** Callback invoked when a tool is called. Parameters: (toolName, argsJson). */
-    typealias ToolCallCallback = (suspend (toolName: String, argsJson: String) -> Unit)?
+    typealias ToolCallCallback = (suspend (choiceIndex: Int, toolName: String, argsJson: String) -> Unit)?
+    typealias ToolExecutionFailedCallback = ((Throwable?) -> Unit)?
 
     /**
      * Executes a tool call by finding the matching tool and running it.
@@ -50,7 +51,9 @@ interface ToolCapable {
         request: ChatRequest,
         autoExecute: Boolean = true,
         maxSteps: Int? = null,
+        currentStep: Int = 0,
         onToolCall: ToolCallCallback = null,
+        onToolExecutionFailed: ToolExecutionFailedCallback = null
     ): ChatResponse
 
     /**
@@ -64,7 +67,9 @@ interface ToolCapable {
     suspend fun chatWithTools(
         autoExecute: Boolean = true,
         maxSteps: Int? = null,
+        currentStep: Int = 0,
         onToolCall: ToolCallCallback = null,
+        onToolExecutionFailed: ToolExecutionFailedCallback = null,
         block: ChatRequestBuilder.() -> Unit
     ): ChatResponse
 
@@ -87,7 +92,8 @@ interface ToolCapable {
         maxSteps: Int? = null,
         currentStep: Int = 0,
         onFullToolCollected: ToolCallCallback = null,
-        onToolCall: ToolCallCallback = null
+        onToolCall: ToolCallCallback = null,
+        onToolExecutionFailed: ToolExecutionFailedCallback = null
     ): Flow<ChatChunk>
 
     /**
@@ -105,6 +111,7 @@ interface ToolCapable {
         currentStep: Int = 0,
         onFullToolCollected: ToolCallCallback = null,
         onToolCall: ToolCallCallback = null,
+        onToolExecutionFailed: ToolExecutionFailedCallback = null,
         block: ChatRequestBuilder.() -> Unit
     ): Flow<ChatChunk>
 }

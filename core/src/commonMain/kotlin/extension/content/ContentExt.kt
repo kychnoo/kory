@@ -13,6 +13,12 @@ fun Content.Request.asAssistantMessage(): Message {
     return Message(role = Role.Assistant, content = this)
 }
 
+fun Content.ToolCall.toToolResult(result: String): Content.ToolResult  = Content.ToolResult(
+    toolCallId = this.id,
+    name = this.name,
+    content = result
+)
+
 /**
  * Maps a list of request contents to assistant messages.
  *
@@ -31,10 +37,10 @@ fun List<Content.Request>.asAssistantMessages(): List<Message> = map { it.asAssi
 /**
  * Attempts to cast this response content to a request-compatible content type.
  *
- * @return This content as a [Content.Request] if it implements [Content.Request],
- *   `null` otherwise (e.g. for [Content.Reasoning]).
+ * @return This content as a [Request] if it implements [Request],
+ *   `null` otherwise (e.g. for [Reasoning]).
  *
- * @see io.kory.core.message.content.Content
+ * @see Content
  */
 fun Content.Response.asRequestContent(): Content? {
     return this as? Content.Request

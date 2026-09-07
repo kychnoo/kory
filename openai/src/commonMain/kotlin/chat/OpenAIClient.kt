@@ -1,5 +1,6 @@
 package io.kory.openai.chat
 
+import io.kory.core.chat.choice.ChatChoice
 import io.kory.core.chat.client.ChatClient
 import io.kory.core.chat.chunk.ChatChunk
 import io.kory.core.chat.client.ApiKey
@@ -10,7 +11,10 @@ import io.kory.core.dsl.chat.koryChat
 import io.kory.core.dsl.chat.request.ChatRequestBuilder
 import io.kory.core.dsl.chat.request.koryChatRequest
 import io.kory.core.exception.tools.ToolExecutionException
+import io.kory.core.extension.chat.addMessages
+import io.kory.core.extension.content.asAssistantMessage
 import io.kory.core.extension.content.asAssistantMessages
+import io.kory.core.extension.string.asAssistantMessage
 import io.kory.core.extension.throwable.runCatchingCancelable
 import io.kory.core.message.Message
 import io.kory.core.message.Role
@@ -33,18 +37,24 @@ import io.kory.openai.extension.exception.toException
 import io.kory.openai.extension.toModels
 import io.kory.openai.json.json
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonObject
+import kotlin.collections.map
 import kotlin.getOrElse
 
 private class PartialToolCallAccumulator(
+    val choiceIndex: Int,
     val index: Int,
     var id: String = "",
     var name: String = "",
@@ -95,7 +105,7 @@ class OpenAIClient(
      * @throws KoryHttpException if the request fails.
      * @throws OpenAIException if OpenAI API returns an error.
      */
-    suspend fun chat(request: OpenAIChatCompletionRequest): OpenAIChatCompletionResponse = withContext(Dispatchers.Default) {
+    suspend fun chatCompletions(request: OpenAIChatCompletionRequest): OpenAIChatCompletionResponse = withContext(Dispatchers.Default) {
         runCatchingCancelable {
             val response = client.post(
                 "chat/completions",
@@ -134,7 +144,7 @@ class OpenAIClient(
      */
     override suspend fun chat(request: ChatRequest): ChatResponse {
         runCatchingCancelable {
-            return chat(request.toOpenAIChatCompletionRequest()).toChatResponse()
+            return chatCompletions(request.toOpenAIChatCompletionRequest()).toChatResponse()
         }.getOrElse { th ->
             throw when (th) {
                 is OpenAIException -> th.toKoryProviderException()
@@ -195,7 +205,7 @@ class OpenAIClient(
      * @throws OpenAIException if the OpenAI API returns an error.
      * @throws KoryHttpException if the HTTP request fails (timeout, network, etc.).
      */
-    fun chatStream(request: OpenAIChatCompletionRequest): Flow<OpenAIChatCompletionChunk> = flow {
+    fun chatCompletionsStream(request: OpenAIChatCompletionRequest): Flow<OpenAIChatCompletionChunk> = flow {
         val streamRequest = request.stream()
 
         val lineFlow = runCatchingCancelable {
@@ -262,7 +272,7 @@ class OpenAIClient(
      * @sample examples.openai.client.sendToChatStreamWithRequest
      */
     override fun chatStream(request: ChatRequest): Flow<ChatChunk> {
-         return chatStream(request.toOpenAIChatCompletionRequest())
+         return chatCompletionsStream(request.toOpenAIChatCompletionRequest())
              .map { it.toChatChunk() }
              .catch { th ->
                  throw when (th) {
@@ -379,57 +389,114 @@ class OpenAIClient(
         request: ChatRequest,
         autoExecute: Boolean,
         maxSteps: Int?,
-        onToolCall: ToolCapable.ToolCallCallback
+        currentStep: Int,
+        onToolCall: ToolCapable.ToolCallCallback,
+        onToolExecutionFailed: ToolCapable.ToolExecutionFailedCallback
     ): ChatResponse {
         if (request.tools.isEmpty() || !autoExecute) {
             return chat(request)
         }
 
-        val messages = request.chat.messages.toMutableList()
-        val toolMap = request.tools.associateBy { it.name }
-        var currentStep = 0
+        if (maxSteps != null && currentStep >= maxSteps) return chat(request.copy(tools = emptyList()))
 
-        while (maxSteps == null || currentStep < maxSteps) {
-            currentStep++
+        val response = chat(request)
+        if (response.choices.isEmpty()) return response
 
-            val currentRequest = request.copy(chat = request.chat.copy(messages = messages))
-            val response = chat(currentRequest)
-
-            if (response.choices.isEmpty()) return response
-
-            val allToolCalls = response.choices
-                .flatMap { it.contents }
-                .filterIsInstance<Content.ToolCall>()
-
-            if (allToolCalls.isEmpty()) return response
-
-            for (choice in response.choices) {
-                for (content in choice.contents) {
-                    if (content is Content.Request) {
-                        messages.add(Message(role = Role.Assistant, content = content))
-                    }
-                }
-
-                for (call in allToolCalls) {
-                    onToolCall?.invoke(call.name, call.argumentsJson)
-
-                    val result = executeTool(call, toolMap)
-
-                    messages.add(
-                        Message(
-                            role = Role.Tool,
-                            content = Content.ToolResult(
-                                toolCallId = call.id,
-                                content = result,
-                                name = call.name,
-                            )
-                        )
-                    )
-                }
-            }
+        val choicesWithTools = response.choices.filter { choice ->
+            choice.contents.any { it is Content.ToolCall }
         }
 
-        return chat(request.copy(chat = request.chat.copy(messages = messages)))
+        if (choicesWithTools.isEmpty()) return response
+
+        val updatedChoices = coroutineScope {
+            choicesWithTools.map { choice ->
+                async {
+                    processChoiceBranch(
+                        request = request,
+                        choiceIndex = choice.index,
+                        contents = choice.contents,
+                        maxSteps = maxSteps,
+                        currentStep = currentStep,
+                        onToolCall = onToolCall,
+                        onToolExecutionFailed = onToolExecutionFailed
+                    )
+                }
+            }.awaitAll()
+        }
+
+        return ChatResponse(
+            choices = updatedChoices.flatMap { it.choices },
+            usage = response.usage,
+        )
+    }
+
+    private suspend fun processChoiceBranch(
+        request: ChatRequest,
+        choiceIndex: Int,
+        contents: List<Content.Response>,
+        maxSteps: Int?,
+        currentStep: Int,
+        onToolCall: ToolCapable.ToolCallCallback,
+        onToolExecutionFailed: ToolCapable.ToolExecutionFailedCallback
+    ): ChatResponse {
+        val toolCalls = contents.filterIsInstance<Content.ToolCall>()
+        val branchText = contents.filterIsInstance<Content.Text>().joinToString("")
+
+        val toolMap = request.tools.associateBy { it.name }
+        val messages = request.chat.messages.toMutableList()
+
+        if (branchText.isNotBlank()) {
+            messages.add(branchText.asAssistantMessage())
+        }
+
+        messages.addAll(toolCalls.asAssistantMessages())
+
+        val results = coroutineScope {
+            toolCalls.map { call ->
+                async {
+                    onToolCall?.invoke(choiceIndex, call.name, call.argumentsJson)
+
+                    val executionResult = runCatchingCancelable {
+                        executeTool(call, toolMap)
+                    }.getOrElse { th ->
+                        onToolExecutionFailed?.invoke(th)
+                        "Error executing tool '${call.name}': ${th.message ?: "Unknown error"}"
+                    }
+
+                    call to executionResult
+                }
+            }.awaitAll()
+        }
+
+        results.forEach { (call, result) ->
+            messages.add(
+                Message(
+                    role = Role.Tool,
+                    content = Content.ToolResult(
+                        toolCallId = call.id,
+                        content = result,
+                        name = call.name
+                    )
+                )
+            )
+        }
+
+        val branchRequest = request.copy(
+            chat = request.chat.copy(messages = messages),
+            choicesCount = 1
+        )
+
+        val branchResponse = chatWithTools(
+            request = branchRequest,
+            autoExecute = true,
+            maxSteps = maxSteps,
+            currentStep = currentStep + 1,
+            onToolCall = onToolCall
+        )
+
+        return branchResponse.copy(
+            choices = branchResponse.choices.map { it.copy(index = choiceIndex) }
+        )
     }
 
     /**
@@ -450,7 +517,9 @@ class OpenAIClient(
     override suspend fun chatWithTools(
         autoExecute: Boolean,
         maxSteps: Int?,
+        currentStep: Int,
         onToolCall: ToolCapable.ToolCallCallback,
+        onToolExecutionFailed: ToolCapable.ToolExecutionFailedCallback,
         block: ChatRequestBuilder.() -> Unit
     ): ChatResponse {
         val request = koryChatRequest(block)
@@ -458,7 +527,8 @@ class OpenAIClient(
             request = request,
             maxSteps = maxSteps,
             autoExecute = autoExecute,
-            onToolCall = onToolCall
+            onToolCall = onToolCall,
+            onToolExecutionFailed = onToolExecutionFailed
         )
     }
 
@@ -487,25 +557,24 @@ class OpenAIClient(
         maxSteps: Int?,
         currentStep: Int,
         onFullToolCollected: ToolCapable.ToolCallCallback,
-        onToolCall: ToolCapable.ToolCallCallback
+        onToolCall: ToolCapable.ToolCallCallback,
+        onToolExecutionFailed: ToolCapable.ToolExecutionFailedCallback
     ): Flow<ChatChunk> = flow {
-        val toolBuffers = mutableMapOf<Int, PartialToolCallAccumulator>()
-        val assistantTextBuilder = StringBuilder()
+        val toolBuffers = mutableMapOf<Pair<Int, Int>, PartialToolCallAccumulator>()
+        val textBuffers = mutableMapOf<Int, StringBuilder>()
 
         chatStream(request).collect { chunk ->
-            var hasTextDelta = false
             var hasToolDelta = false
 
             for (choice in chunk.choices) {
                 when (val content = choice.content) {
                     is Content.Text -> {
-                        hasTextDelta = true
-                        assistantTextBuilder.append(content.text)
+                        textBuffers.getOrPut(choice.index) { StringBuilder() } .append(content.text)
                     }
                     is Content.ToolCallDelta -> {
                         hasToolDelta = true
-                        val buffer = toolBuffers.getOrPut(content.index) {
-                            PartialToolCallAccumulator(index = content.index)
+                        val buffer = toolBuffers.getOrPut(choice.index to content.index) {
+                            PartialToolCallAccumulator(choiceIndex = choice.index, index = content.index)
                         }
                         content.id?.let { if (it.isNotEmpty()) buffer.id = it}
                         content.name?.let { if (it.isNotEmpty()) buffer.name = it }
@@ -515,61 +584,99 @@ class OpenAIClient(
                 }
             }
 
-            if (hasTextDelta || !hasToolDelta) emit(chunk)
+            if (!hasToolDelta || !autoExecute) emit(chunk)
         }
 
-        if (toolBuffers.isNotEmpty()) {
-            val toolCalls = toolBuffers.values.map { buffer ->
-                Content.ToolCall(
-                    id = buffer.id,
-                    name = buffer.name,
-                    argumentsJson = buffer.argumentsBuilder.toString()
-                )
-            }
+        if (!autoExecute) return@flow
+        if (maxSteps != null && currentStep >= maxSteps) return@flow
 
-            toolCalls.forEach { call ->
-                onFullToolCollected?.invoke(call.name, call.argumentsJson)
-            }
+        val byChoice = toolBuffers.values
+            .filter { it.name.isNotEmpty() }
+            .groupBy { it.choiceIndex }
 
-            if (autoExecute && (maxSteps == null || currentStep < maxSteps)) {
-                val messages = request.chat.messages.toMutableList()
-                val toolMap = request.tools.associateBy { it.name }
+        if (byChoice.isEmpty()) return@flow
 
-                if (assistantTextBuilder.isNotEmpty()) {
-                    messages.add(
-                        Message(
-                            role = Role.Assistant,
-                            content = Content.Text(assistantTextBuilder.toString())
-                        )
-                    )
-                }
-
-                messages.addAll(toolCalls.asAssistantMessages())
-
-                for (call in toolCalls) {
-                    onToolCall?.invoke(call.name, call.argumentsJson)
-
-                    val result = executeTool(call, toolMap)
-
-                    messages.add(
-                        Message(
-                            role = Role.Tool,
-                            content = Content.ToolResult(
-                                toolCallId = call.id,
-                                content = result,
-                                name = call.name,
-                            )
-                        )
-                    )
-                }
-
-                val nextRequest = request.copy(
-                    chat = request.chat.copy(messages = messages)
-                )
-
-                emitAll(chatStreamWithTools(nextRequest, true, maxSteps, currentStep, onFullToolCollected, onToolCall))
-            }
+        val branchFlows = byChoice.map { (choiceIndex, buffers) ->
+            continueBranch(request, choiceIndex, textBuffers[choiceIndex]?.toString().orEmpty(), buffers,
+                maxSteps, currentStep,
+                onFullToolCollected, onToolCall, onToolExecutionFailed)
         }
+
+        emitAll(branchFlows.merge())
+    }.flowOn(Dispatchers.Default)
+
+    private fun continueBranch(
+        request: ChatRequest,
+        choiceIndex: Int,
+        branchText: String,
+        buffers: List<PartialToolCallAccumulator>,
+        maxSteps: Int?,
+        currentStep: Int,
+        onFullToolCollected: ToolCapable.ToolCallCallback,
+        onToolCall: ToolCapable.ToolCallCallback,
+        onToolExecutionFailed: ToolCapable.ToolExecutionFailedCallback
+    ): Flow<ChatChunk> = flow {
+        val calls = buffers.sortedBy { it.index }.map { buffer ->
+            Content.ToolCall(
+                id = buffer.id,
+                name = buffer.name,
+                argumentsJson = buffer.argumentsBuilder.toString()
+            )
+        }
+
+        calls.forEach { call ->
+            onFullToolCollected?.invoke(choiceIndex, call.name, call.argumentsJson)
+        }
+
+        val toolMap = request.tools.associateBy { it.name }
+        val messages = request.chat.messages.toMutableList()
+
+        if (branchText.isNotBlank()) {
+            messages.add(branchText.asAssistantMessage())
+        }
+
+        messages.addAll(calls.asAssistantMessages())
+
+        val results = coroutineScope {
+            calls.map { call ->
+                async {
+                    onToolCall?.invoke(choiceIndex, call.name, call.argumentsJson)
+
+                    val executionResult = runCatching {
+                        executeTool(call, toolMap)
+                    }.getOrElse { th ->
+                        onToolExecutionFailed?.invoke(th)
+                        "Error executing tool '${call.name}': ${th.message ?: "Unknown error"}"
+                    }
+
+                    call to executionResult
+                }
+            }.awaitAll()
+        }
+
+        results.forEach { (call, result) ->
+            messages.add(
+                Message(
+                    role = Role.Tool,
+                    content = Content.ToolResult(
+                        toolCallId = call.id,
+                        content = result,
+                        name = call.name,
+                    )
+                )
+            )
+        }
+
+        val branchRequest = request.copy(
+            chat = request.chat.copy(messages = messages),
+            choicesCount = 1
+        )
+
+        chatStreamWithTools(branchRequest, true, maxSteps, currentStep + 1, onFullToolCollected, onToolCall)
+            .collect { chunk ->
+                emit(chunk.copy(choices = chunk.choices.map { it.copy(index = choiceIndex) }))
+            }
+
     }.flowOn(Dispatchers.Default)
 
     /**
@@ -593,6 +700,7 @@ class OpenAIClient(
         currentStep: Int,
         onFullToolCollected: ToolCapable.ToolCallCallback,
         onToolCall: ToolCapable.ToolCallCallback,
+        onToolExecutionFailed: ToolCapable.ToolExecutionFailedCallback,
         block: ChatRequestBuilder.() -> Unit
     ): Flow<ChatChunk> {
         val request = koryChatRequest(block)
@@ -602,7 +710,8 @@ class OpenAIClient(
             currentStep = currentStep,
             onFullToolCollected = onFullToolCollected,
             autoExecute = autoExecute,
-            onToolCall = onToolCall
+            onToolCall = onToolCall,
+            onToolExecutionFailed = onToolExecutionFailed
         )
     }
 }

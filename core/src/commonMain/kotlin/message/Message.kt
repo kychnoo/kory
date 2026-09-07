@@ -20,5 +20,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Message(
     val role: Role,
-    val content: Content.Request,
+    val content: Content.Request
 )
