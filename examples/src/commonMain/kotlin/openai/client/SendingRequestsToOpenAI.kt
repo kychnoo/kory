@@ -210,9 +210,9 @@ suspend fun sendToChatWithToolsRequest(client: OpenAIClient, modelName: String) 
         // The tools will execute automatically.
         client.chatWithTools(
             request = request,
-            onToolCall = { name, argsJson ->
+            onToolCall = { chunkIndex, name, argsJson ->
                 // This callback will be triggered when the AI calls the tool.
-                println("AI called tool: $name with args: $argsJson")
+                println("AI called tool in $chunkIndex chunk: $name with args: $argsJson")
             }
         )
     } catch (e: Exception) {
@@ -248,9 +248,9 @@ suspend fun sendToChatWithToolsRequestBuilder(client: OpenAIClient, modelName: S
     val response: ChatResponse? = try {
         // The tools will execute automatically.
         client.chatWithTools(
-            onToolCall = { name, argsJson ->
+            onToolCall = { chunkIndex, name, argsJson ->
                 // This callback will be triggered when the AI calls the tool.
-                println("AI called tool: $name with args: $argsJson")
+                println("AI called tool in $chunkIndex chunk: $name with args: $argsJson")
             }
         ) {
             reasoning = ReasoningConfig.Enabled(ReasoningConfig.Level.LOW) // Low reasoning so that the model can think.
@@ -310,13 +310,13 @@ suspend fun sendToChatStreamWithToolsRequest(client: OpenAIClient, modelName: St
     // The tools will execute automatically.
     client.chatStreamWithTools(
         request = request,
-        onToolCall = { name, argsJson ->
+        onToolCall = { chunkIndex, name, argsJson ->
             // This callback will be triggered when the AI calls the tool.
-            println("AI called tool: $name with args: $argsJson")
+            println("AI called tool in $chunkIndex chunk: $name with args: $argsJson")
         },
-        onFullToolCollected = { name, argsJson ->
+        onFullToolCollected = { chunkIndex, name, argsJson ->
             // This callback will be triggered when the library has fully assembled the message regarding the tool call.
-            println("Full tool call: $name with args: $argsJson")
+            println("Full tool call in $chunkIndex chunk: $name with args: $argsJson")
         }
     ).collect { chunk ->
         // Iterate all choices in chunk.
@@ -339,13 +339,13 @@ suspend fun sendToChatStreamWithToolsRequestBuilder(client: OpenAIClient, modelN
 
     // The tools will execute automatically.
     client.chatStreamWithTools(
-        onToolCall = { name, argsJson ->
+        onToolCall = { chunkIndex, name, argsJson ->
             // This callback will be triggered when the AI calls the tool.
-            println("AI called tool: $name with args: $argsJson")
+            println("AI called tool in $chunkIndex chunk: $name with args: $argsJson")
         },
-        onFullToolCollected = { name, argsJson ->
+        onFullToolCollected = { chunkIndex, name, argsJson ->
             // This callback will be triggered when the library has fully assembled the message regarding the tool call.
-            println("Full tool call: $name with args: $argsJson")
+            println("Full tool call in $chunkIndex chunk: $name with args: $argsJson")
         }
     ) {
         reasoning = ReasoningConfig.Enabled(ReasoningConfig.Level.LOW) // Low reasoning so that the model can think.
