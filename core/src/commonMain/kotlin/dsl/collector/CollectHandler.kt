@@ -61,6 +61,7 @@ class CollectHandler<T> {
  *
  * @param block DSL builder for registering callbacks.
  * @sample examples.core.utils.collector.collectChatStreamWithHandler
+ * @sample examples.core.extensions.chunk.collectingChunkUsingCollectHandler
  */
 suspend inline fun Flow<ChatChunk>.collectHandler(block: CollectHandler<ChatChunk>.() -> Unit) {
     CollectHandler<ChatChunk>().apply(block).collectFrom(this)

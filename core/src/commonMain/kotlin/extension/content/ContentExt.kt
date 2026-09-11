@@ -37,8 +37,8 @@ fun List<Content.Request>.asAssistantMessages(): List<Message> = map { it.asAssi
 /**
  * Attempts to cast this response content to a request-compatible content type.
  *
- * @return This content as a [Request] if it implements [Request],
- *   `null` otherwise (e.g. for [Reasoning]).
+ * @return This content as a [io.kory.core.message.content.Content.Request] if it implements [io.kory.core.message.content.Content.Request],
+ *   `null` otherwise (e.g. for [io.kory.core.message.content.Content.Reasoning]).
  *
  * @see Content
  */

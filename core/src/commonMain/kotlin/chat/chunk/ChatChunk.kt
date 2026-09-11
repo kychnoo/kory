@@ -13,6 +13,7 @@ import kotlinx.serialization.Serializable
  * @property choices The streaming choices in this chunk.
  *
  * @sample examples.core.chat.chunk.processChatChunk
+ * @sample examples.core.extensions.chunk.collectingChunkUsingCollectHandler
  */
 @Serializable
 data class ChatChunk(

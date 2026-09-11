@@ -2,12 +2,16 @@ package examples.openai.client
 
 import examples.core.tools.TestWeatherTool
 import io.kory.core.chat.Chat
+import io.kory.core.chat.chunk.ChatChunk
 import io.kory.core.chat.reasoning.ReasoningConfig
 import io.kory.core.chat.request.ChatRequest
 import io.kory.core.chat.response.ChatResponse
 import io.kory.core.dsl.chat.koryChat
+import io.kory.core.dsl.collector.collectHandler
+import io.kory.core.extension.chunk.forEachChoice
 import io.kory.core.message.content.Content
 import io.kory.openai.chat.OpenAIClient
+import kotlinx.coroutines.flow.Flow
 
 suspend fun sendToChatWithChatRequest(client: OpenAIClient, modelName: String) {
     // Send a ChatRequest to OpenAI.
