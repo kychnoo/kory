@@ -96,6 +96,6 @@ fun processContentResponse(contentResponse: Content.Response) {
         is Content.Parts -> println("Parts: ${contentResponse.parts}")
         is Content.Reasoning -> println("Reasoning: ${contentResponse.value}")
         is Content.Text -> println("Output: ${contentResponse.text}")
-        is Content.ToolCall -> TODO()
+        is Content.ToolCall -> println("Tool call: ${contentResponse.name} with ${contentResponse.argumentsJson}")
     }
 }
