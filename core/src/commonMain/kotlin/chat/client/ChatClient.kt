@@ -36,7 +36,7 @@ interface ChatClient {
     /**
      * Sends a chat using DSL-style message construction.
      *
-     * @param model The model identifier (e.g. `"gpt-4o"`, `"qwen3.5:4b"`).
+     * @param model The model identifier (e.g. `"gpt-5.6-sol"`, `"qwen3.5:4b"`).
      * @param blocks A [io.kory.core.dsl.chat.ChatBuilder] lambda for adding system, user, and assistant messages.
      * @return A [ChatResponse] with the model's reply.
      */

@@ -11,9 +11,21 @@ import kotlinx.serialization.Serializable
 /**
  * A choice in an OpenAI chat completion response.
  *
+ * Example:
+ * ```json
+ * {
+ *   "index": 0,
+ *   "message": { "role": "assistant", "content": "Hello!" },
+ *   "finish_reason": "stop"
+ * }
+ * ```
+ *
  * @property index The index of this choice.
  * @property message The message returned by the model.
- * @property finishReason Why the model stopped: `"stop"`, `"length"`, `"tool_calls"`, etc.
+ * @property finishReason Why the model stopped: `"stop"`, `"length"`, `"tool_calls"`,
+ * `"content_filter"` or `"function_call"` (deprecated). `null` while still generating.
+ * @property logprobs Log probability information for the choice. Only present when
+ * `logprobs` is set to `true` in the request. `null` otherwise.
  */
 @Serializable
 data class OpenAIChoice(
@@ -21,6 +33,7 @@ data class OpenAIChoice(
     val message: OpenAIMessage,
     @SerialName("finish_reason")
     val finishReason: String? = null,
+    val logprobs: OpenAIChoiceLogprobs? = null,
 ) : Mapper<ChatChoice> {
     override fun map(): ChatChoice {
         val responseContents = mutableListOf<Content.Response>()

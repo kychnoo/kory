@@ -12,14 +12,14 @@ internal class OpenAIModelTest {
     @Test
     fun testToModel() {
         val openAIModel = OpenAIModel(
-            id = "gpt-4o",
+            id = "gpt-5.6-sol",
             created = 1234567890L,
             ownedBy = "openai",
             shutdownDate = null,
         )
         val model = openAIModel.toModel()
 
-        assertEquals("gpt-4o", model.name)
+        assertEquals("gpt-5.6-sol", model.name)
         assertEquals(1234567890L, model.createdAt)
         assertEquals("openai", model.ownedBy)
         assertEquals("", model.contextWindow)

@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 /**
  * OpenAI model object from the `GET /models` endpoint.
  *
- * @property id The model identifier (e.g. `"gpt-4o"`).
+ * @property id The model identifier (e.g. `"gpt-5.6-sol"`).
  * @property obj Object type (default: `"model"`).
  * @property created Epoch timestamp when the model was created.
  * @property ownedBy The organization that owns the model.

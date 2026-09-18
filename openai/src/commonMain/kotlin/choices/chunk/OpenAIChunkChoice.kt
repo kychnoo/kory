@@ -4,6 +4,7 @@ import io.kory.core.chat.choice.ChatChunkChoice
 import io.kory.core.message.content.Content
 import io.kory.core.utils.mapper.Mapper
 import io.kory.openai.chat.chunk.OpenAIDelta
+import io.kory.openai.choices.OpenAIChoiceLogprobs
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -18,12 +19,15 @@ import kotlinx.serialization.Serializable
  * @property index The index of this choice.
  * @property delta The incremental delta content.
  * @property finishReason Why the model stopped. `null` while still streaming.
+ * @property logprobs Log probability information for the choice. Only present when
+ * `logprobs` is set to `true` in the request. `null` otherwise.
  */
 @Serializable
 data class OpenAIChunkChoice(
     val index: Int,
     val delta: OpenAIDelta,
-    @SerialName("finish_reason") val finishReason: String? = null
+    @SerialName("finish_reason") val finishReason: String? = null,
+    val logprobs: OpenAIChoiceLogprobs? = null
 ) : Mapper<List<ChatChunkChoice>> {
     override fun map(): List<ChatChunkChoice> {
         delta.effectiveReasoning?.let { effectiveReasoning ->

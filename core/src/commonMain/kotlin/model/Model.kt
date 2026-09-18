@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
  * Represents metadata about an available LLM model. Use [ChatClient.listModels][io.kory.core.chat.client.ChatClient.listModels]
  * to retrieve a list of models from a provider.
  *
- * @property name The model identifier (e.g. `"gpt-4o"`).
+ * @property name The model identifier (e.g. `"gpt-5.6-sol"`).
  * @property createdAt Epoch timestamp when the model was created.
  * @property ownedBy The organization that owns the model (e.g. `"openai"`).
  * @property contextWindow The context window size (may be empty if unknown).
