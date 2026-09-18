@@ -1,5 +1,6 @@
 package io.kory.openai.dsl
 
+import io.kory.core.exception.model.ModelRequiredException
 import io.kory.openai.response.format.OpenAIResponseFormat
 import io.kory.openai.service.OpenAIServiceTier
 import io.kory.openai.stop.OpenAIStop
@@ -30,8 +31,8 @@ internal class OpenAIChatCompletionRequestBuilderTest {
 
     @Test
     fun testBuilderRequiresModel() {
-        assertFailsWith<IllegalArgumentException> {
-            io.kory.openai.dsl.request.OpenAIChatCompletionRequestBuilder().build()
+        assertFailsWith<ModelRequiredException> {
+            openAIChatCompletionRequest(model = "") { userMessage("Hello") }
         }
     }
 
