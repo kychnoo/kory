@@ -25,5 +25,9 @@ kotlin {
         }
 
         jvmMain
+
+        commonTest {
+            kotlin.srcDir("src/samples/kotlin")
+        }
     }
 }

@@ -36,8 +36,12 @@ kotlin {
         jvmMain
         nativeMain
 
-        commonTest.dependencies {
-            implementation(kotlin("test"))
+        commonTest {
+            kotlin.srcDir("src/samples/kotlin")
+
+            dependencies {
+                implementation(kotlin("test"))
+            }
         }
 
         val mingwX64Main by getting {

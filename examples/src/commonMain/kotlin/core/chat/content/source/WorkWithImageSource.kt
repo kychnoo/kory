@@ -1,4 +1,4 @@
-package examples.core.chat.content.source
+package io.kory.core.samples.chat.content.source
 
 import io.kory.core.files.MimeType
 import io.kory.core.message.content.source.ImageSource

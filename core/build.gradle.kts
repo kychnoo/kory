@@ -11,9 +11,7 @@ version = "0.0.1"
 
 dokka {
     dokkaSourceSets.commonMain {
-        samples.from(
-            rootProject.files("examples/src/commonMain/kotlin"),
-        )
+        samples.from("src/samples/kotlin")
     }
 }
 
@@ -36,8 +34,12 @@ kotlin {
             implementation(libs.kotlinxIoCore)
         }
 
-        commonTest.dependencies {
-            implementation(kotlin("test"))
+        commonTest {
+            kotlin.srcDir("src/samples/kotlin")
+
+            dependencies {
+                implementation(kotlin("test"))
+            }
         }
     }
 }

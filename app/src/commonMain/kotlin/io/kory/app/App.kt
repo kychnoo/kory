@@ -9,7 +9,7 @@ import io.kory.core.exception.KoryProviderException
 import io.kory.core.extension.chunk.forEachChoice
 import io.kory.core.extension.throwable.runCatchingCancelable
 import io.kory.core.message.content.Content
-import io.kory.openai.chat.OpenAIClient
+import io.kory.openai.client.OpenAIClient
 import kotlinx.coroutines.coroutineScope
 
 suspend fun runApp() = coroutineScope {
