@@ -64,7 +64,7 @@ internal class StringExtTest {
     @Test
     fun testAsSystemMessage() {
         val msg = "system prompt".asSystemMessage()
-        assertEquals(Role.SYSTEM, msg.role)
+        assertEquals(Role.System, msg.role)
         assertTrue(msg.content is Content.Text)
         assertEquals("system prompt", msg.content.text)
     }
@@ -72,7 +72,7 @@ internal class StringExtTest {
     @Test
     fun testAsUserMessage() {
         val msg = "hello".asUserMessage()
-        assertEquals(Role.USER, msg.role)
+        assertEquals(Role.User, msg.role)
         assertTrue(msg.content is Content.Text)
         assertEquals("hello", msg.content.text)
     }
@@ -80,7 +80,7 @@ internal class StringExtTest {
     @Test
     fun testAsAssistantMessage() {
         val msg = "response".asAssistantMessage()
-        assertEquals(Role.ASSISTANT, msg.role)
+        assertEquals(Role.Assistant, msg.role)
         assertTrue(msg.content is Content.Text)
         assertEquals("response", msg.content.text)
     }

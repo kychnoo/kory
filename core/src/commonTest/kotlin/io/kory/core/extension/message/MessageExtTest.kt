@@ -11,8 +11,8 @@ internal class MessageExtTest {
     @Test
     fun testAsChat() {
         val messages = listOf(
-            Message(Role.USER, Content.Text("hello")),
-            Message(Role.ASSISTANT, Content.Text("hi")),
+            Message(Role.User, Content.Text("hello")),
+            Message(Role.Assistant, Content.Text("hi")),
         )
         val chat = messages.asChat("gpt-4")
 

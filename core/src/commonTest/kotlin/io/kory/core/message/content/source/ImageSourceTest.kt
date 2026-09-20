@@ -1,5 +1,6 @@
 package io.kory.core.message.content.source
 
+import io.kory.core.files.MimeType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -25,7 +26,7 @@ internal class ImageSourceTest {
         val base64 = "iVBORw0KGgo="
         val source = ImageSource.fromString("data:image/png;base64,$base64")
         assertTrue(source is ImageSource.Bytes)
-        assertEquals("image/png", source.mimeType)
+        assertEquals(MimeType.Image.Png, source.mimeType)
     }
 
     @Test
@@ -51,8 +52,8 @@ internal class ImageSourceTest {
 
     @Test
     fun testImageSourceFilePathEquality() {
-        val a = ImageSource.FilePath("/a/b.png", "image/png")
-        val b = ImageSource.FilePath("/a/b.png", "image/png")
+        val a = ImageSource.FilePath("/a/b.png", MimeType.Image.Png)
+        val b = ImageSource.FilePath("/a/b.png", MimeType.Image.Png)
         assertEquals(a, b)
     }
 }

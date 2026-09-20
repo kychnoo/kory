@@ -15,7 +15,7 @@ internal class ChatBuilderTest {
 
         assertEquals("gpt-4", chat.model)
         assertEquals(1, chat.messages.size)
-        assertEquals(Role.SYSTEM, chat.messages[0].role)
+        assertEquals(Role.System, chat.messages[0].role)
         assertEquals("You are helpful", (chat.messages[0].content as Content.Text).text)
     }
 
@@ -26,7 +26,7 @@ internal class ChatBuilderTest {
         }
 
         assertEquals(1, chat.messages.size)
-        assertEquals(Role.USER, chat.messages[0].role)
+        assertEquals(Role.User, chat.messages[0].role)
     }
 
     @Test
@@ -36,7 +36,7 @@ internal class ChatBuilderTest {
         }
 
         assertEquals(1, chat.messages.size)
-        assertEquals(Role.ASSISTANT, chat.messages[0].role)
+        assertEquals(Role.Assistant, chat.messages[0].role)
     }
 
     @Test
@@ -48,8 +48,8 @@ internal class ChatBuilderTest {
         }
 
         assertEquals(3, chat.messages.size)
-        assertEquals(Role.SYSTEM, chat.messages[0].role)
-        assertEquals(Role.USER, chat.messages[1].role)
-        assertEquals(Role.ASSISTANT, chat.messages[2].role)
+        assertEquals(Role.System, chat.messages[0].role)
+        assertEquals(Role.User, chat.messages[1].role)
+        assertEquals(Role.Assistant, chat.messages[2].role)
     }
 }

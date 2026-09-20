@@ -1,11 +1,9 @@
 package io.kory.core.extension.content
 
-import io.kory.core.message.Message
 import io.kory.core.message.Role
 import io.kory.core.message.content.Content
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 internal class ContentExtTest {
@@ -15,7 +13,7 @@ internal class ContentExtTest {
         val content = Content.Text("hello")
         val msg = content.asAssistantMessage()
 
-        assertEquals(Role.ASSISTANT, msg.role)
+        assertEquals(Role.Assistant, msg.role)
         assertEquals(content, msg.content)
     }
 
@@ -29,7 +27,7 @@ internal class ContentExtTest {
 
         assertEquals(2, messages.size)
         messages.forEach { msg ->
-            assertEquals(Role.ASSISTANT, msg.role)
+            assertEquals(Role.Assistant, msg.role)
         }
         assertEquals("msg1", (messages[0].content as Content.Text).text)
         assertEquals("msg2", (messages[1].content as Content.Text).text)

@@ -1,0 +1,100 @@
+package io.kory.openai.internal.extension
+
+import io.kory.core.message.Message
+import io.kory.core.message.Role
+import io.kory.core.message.content.Content
+import io.kory.openai.completions.message.OpenAIMessageParam
+import io.kory.openai.completions.message.content.OpenAIChatCompletionContent
+import io.kory.openai.internal.extension.toOpenAIMessage
+import io.kory.openai.internal.extension.toOpenAIMessageList
+import io.kory.openai.internal.extension.toOpenAIMessageParam
+import io.kory.openai.internal.extension.toOpenAIMessageParamList
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+
+internal class MessageExtOpenAITest {
+
+    @Test
+    fun testToOpenAIMessage() {
+        val message = Message(Role.User, Content.Text("hello"))
+        val result = message.toOpenAIMessage()
+
+        assertEquals(Role.User, result.role)
+        assertNotNull(result.content)
+        assertTrue(result.content is OpenAIChatCompletionContent.Text)
+    }
+
+    @Test
+    fun testToOpenAIMessageParamUser() {
+        val message = Message(Role.User, Content.Text("hello"))
+        val result = message.toOpenAIMessageParam()
+
+        assertTrue(result is OpenAIMessageParam.User)
+    }
+
+    @Test
+    fun testToOpenAIMessageParamSystem() {
+        val message = Message(Role.System, Content.Text("prompt"))
+        val result = message.toOpenAIMessageParam()
+
+        assertTrue(result is OpenAIMessageParam.System)
+    }
+
+    @Test
+    fun testToOpenAIMessageParamAssistant() {
+        val message = Message(Role.Assistant, Content.Text("response"))
+        val result = message.toOpenAIMessageParam()
+
+        assertTrue(result is OpenAIMessageParam.Assistant)
+    }
+
+    @Test
+    fun testToOpenAIMessageParamAssistantToolCall() {
+        val message = Message(
+            Role.Assistant,
+            Content.ToolCall(id = "call_1", name = "search", argumentsJson = """{"q":"test"}""")
+        )
+        val result = message.toOpenAIMessageParam()
+
+        assertTrue(result is OpenAIMessageParam.Assistant)
+        assertNotNull(result.toolCalls)
+        assertEquals(1, result.toolCalls.size)
+        assertEquals("search", result.toolCalls[0].function.name)
+    }
+
+    @Test
+    fun testToOpenAIMessageParamTool() {
+        val message = Message(
+            Role.Tool,
+            Content.ToolResult(toolCallId = "call_1", name = "search", content = "result")
+        )
+        val result = message.toOpenAIMessageParam()
+
+        assertTrue(result is OpenAIMessageParam.Tool)
+        assertEquals("call_1", result.toolCallId)
+    }
+
+    @Test
+    fun testToOpenAIMessageParamList() {
+        val messages = listOf(
+            Message(Role.User, Content.Text("q1")),
+            Message(Role.Assistant, Content.Text("a1")),
+        )
+        val result = messages.toOpenAIMessageParamList()
+
+        assertEquals(2, result.size)
+    }
+
+    @Test
+    fun testToOpenAIMessageList() {
+        val messages = listOf(
+            Message(Role.User, Content.Text("q1")),
+            Message(Role.Assistant, Content.Text("a1")),
+        )
+        val result = messages.toOpenAIMessageList()
+
+        assertEquals(2, result.size)
+    }
+}

@@ -29,10 +29,14 @@ import io.kory.core.message.content.Content
 import io.kory.openai.chat.OpenAIClient
 import io.kory.core.chat.response.ChatResponse
 import kotlinx.coroutines.runBlocking
+import io.kory.core.chat.client.ApiKey
 
-fun main() {
-    // Read API key from environment
-    val apiKey = System.getenv("OPEN_AI_API_KEY") ?: error("Error: No api key provided")
+fun main() = runBlocking {
+    val apiKey = ApiKey.fromEnv("OPENAI_API_KEY") { e ->
+        // This callback is triggered if the key was not found in the system environment.
+        println("Received exception: ${e.message}, using fallback key...")
+        "Put your fallback api key here"
+    }
 
     // Create an OpenAI-compatible client.
     // Works with any provider that exposes an OpenAI-compatible API.
@@ -40,36 +44,31 @@ fun main() {
         apiKey = apiKey
     )
 
-    runBlocking {
-        // Send a chat request using the DSL.
-        // `chat` builds the message list, the client handles serialization and HTTP.
-        val response: ChatResponse? = try {
-            client.chat {
-                chat(model = "model-name") {
-                    user("Ping!")
-                }
-            }
-        } catch (e: Exception) {
-            println("Error: ${e.message}")
-            null
+    // Send a catchable chat request using the DSL.
+    // `chat` builds the message list, the client handles serialization and HTTP.
+    client.chatCatching {
+        chat(model = "model-name") {
+            user("Ping!")
         }
-
+    }.onSuccess { response ->
         // Process the response.
-        response?.let { resp ->
-            // A response contains one or more choices (usually one).
-            for (choice in resp.choices) {
+        response.choices.forEach { choice ->
+            choice.contents.forEach { content ->
                 // Each choice contains a list of content items:
                 // text, reasoning, tool calls, or multi-part content.
-                for (content in choice.contents) {
-                    when (content) {
-                        is Content.Parts -> println("Parts: ${content.parts.joinToString(separator = "\n")}")
-                        is Content.Reasoning -> println("Reasoning: ${content.value}")
-                        is Content.Text -> println("Text: ${content.text}")
-                        is Content.ToolCall -> println("Tool call: ${content.name} with ${content.argumentsJson}")
-                    }
+                val exitContentText = when (content) {
+                    is Content.Parts -> "Parts: ${content.parts.joinToString(separator = "\n")}"
+                    is Content.Reasoning -> "Reasoning: ${content.value}"
+                    is Content.Text -> "Text: ${content.text}"
+                    is Content.ToolCall -> "Tool call: ${content.name} with ${content.argumentsJson}"
                 }
+
+                println("Exit content is: $exitContentText")
             }
         }
+    }.onFailure { error ->
+        // onFailure will be called if the function throws an exception.
+        println(error.message)
     }
 }
 ```
@@ -81,13 +80,25 @@ client.chatStream {
     chat(model = "model-name") {
         user("Tell me a story")
     }
-}.collect { chunk ->
-    for (choice in chunk.choices) {
-        when (val content = choice.content) {
-            is Content.Text -> print(content.text)
-            is Content.Reasoning -> print("[thinking] ${content.value}")
-            else -> {}
+}.collectHandler {
+    // Custom collect handler.
+    onChunk { chunk ->
+        // Called on every chunk.
+        for (choice in chunk.choices) {
+            when (val content = choice.content) {
+                is Content.Text -> println(content.text)
+                is Content.Reasoning -> println("[thinking] ${content.value}")
+                else -> {}
+            }
         }
+    }
+    onError { error ->
+        // Called if an error occurs during streaming.
+        println("${error::class.simpleName}: ${error.message}")
+    }
+    onCompleted {
+        // Called when streaming ends.
+        println("Stream finished!")
     }
 }
 ```
@@ -134,10 +145,12 @@ val response = client.chat {
 
 ## Documentation
 
-KDoc is generated for all public APIs. Run:
+You can view the documentation [here](https://kychnoo.github.io/kory/)
+
+Or generate it using
 
 ```bash
-./gradlew dokkaHtml
+./gradlew dokkaGenerateHtml
 ```
 
 ## Roadmap
@@ -151,8 +164,8 @@ KDoc is generated for all public APIs. Run:
 
 ```bash
 ./gradlew build          # Build all modules
-./gradlew :core:test     # Run core tests
-./gradlew :openai:test   # Run OpenAI module tests
+./gradlew :core:allTest     # Run core tests
+./gradlew :openai:allTest   # Run OpenAI module tests
 ```
 
 ## License
