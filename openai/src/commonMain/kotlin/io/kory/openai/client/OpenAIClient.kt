@@ -23,6 +23,8 @@ import io.kory.ktor.KoryHttpClient
 import io.kory.ktor.data.remote.auth.KoryAuth
 import io.kory.ktor.data.remote.config.KoryHttpClientConfig
 import io.kory.ktor.exception.KoryHttpException
+import io.kory.openai.completions.dsl.OpenAIChatCompletionRequestBuilder
+import io.kory.openai.completions.dsl.openAIChatCompletionRequest
 import io.kory.openai.completions.dto.OpenAIChatCompletionRequest
 import io.kory.openai.completions.dto.OpenAIChatCompletionResponse
 import io.kory.openai.shared.model.OpenAIModelListResponse
@@ -120,9 +122,25 @@ class OpenAIClient(
                         json.decodeFromString<OpenAIErrorResponse>(th.body.decodeToString()).toException(th.status)
                     }.getOrDefault(th)
                 }
+
                 else -> th
             }
         }
+    }
+
+    /**
+     * Sends a raw OpenAI chat completion request using the request DSL.
+     *
+     * @param model The model identifier (e.g. `"gpt-4o"`).
+     * @param block DSL builder for configuring optional request settings.
+     * @return The raw OpenAI response.
+     * @throws KoryHttpException if the request fails.
+     * @throws OpenAIException if OpenAI API returns an error.
+     *
+     * @see OpenAIChatCompletionRequestBuilder
+     */
+    suspend fun chatCompletions(model: String, block: OpenAIChatCompletionRequestBuilder.() -> Unit): OpenAIChatCompletionResponse {
+        return chatCompletions(openAIChatCompletionRequest(model, block))
     }
 
     /**
@@ -253,6 +271,21 @@ class OpenAIClient(
             emit(chunk)
         }
     }.flowOn(Dispatchers.Default)
+
+    /**
+     * Streams raw OpenAI chat completion chunks using the request DSL.
+     *
+     * @param model The model identifier (e.g. `"gpt-4o"`).
+     * @param block DSL builder for configuring optional request settings.
+     * @return A [Flow] of raw OpenAI streaming chunks.
+     * @throws OpenAIException if the OpenAI API returns an error.
+     * @throws KoryHttpException if the HTTP request fails.
+     *
+     * @see OpenAIChatCompletionRequestBuilder
+     */
+    fun chatCompletionsStream(model: String, block: OpenAIChatCompletionRequestBuilder.() -> Unit): Flow<OpenAIChatCompletionChunk> {
+        return chatCompletionsStream(openAIChatCompletionRequest(model, block))
+    }
 
     /**
      * Sends a chat request to the OpenAI API and returns a streaming response.

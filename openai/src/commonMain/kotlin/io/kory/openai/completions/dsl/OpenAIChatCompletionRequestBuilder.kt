@@ -143,6 +143,11 @@ class OpenAIChatCompletionRequestBuilder internal constructor() {
         messageParams.addAll(params)
     }
 
+    /**
+     * Appends multiple message parameters using a builder DSL.
+     *
+     * @param builder DSL for constructing message parameters.
+     */
     fun messages(builder: OpenAIMessageParamsBuilder.() -> Unit) {
         messages(openAIMessageParams(builder))
     }

@@ -1,8 +1,8 @@
 package io.kory.core.samples.chat.content.source
 
+import io.kory.core.exception.files.FileNotFoundException
 import io.kory.core.files.MimeType
 import io.kory.core.message.content.source.ImageSource
-import kotlinx.io.files.FileNotFoundException
 
 
 fun createSourceFromPath() {

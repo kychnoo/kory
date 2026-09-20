@@ -1,6 +1,7 @@
 package io.kory.core.chat.chunk
 
 import io.kory.core.chat.choice.ChatChunkChoice
+import io.kory.core.contract.streaming.AIChunk
 import kotlinx.serialization.Serializable
 
 /**
@@ -18,4 +19,4 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ChatChunk(
     val choices: List<ChatChunkChoice>,
-)
+) : AIChunk

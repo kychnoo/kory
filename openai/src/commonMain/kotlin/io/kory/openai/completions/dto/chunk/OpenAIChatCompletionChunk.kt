@@ -1,6 +1,7 @@
 package io.kory.openai.completions.dto.chunk
 
 import io.kory.core.chat.chunk.ChatChunk
+import io.kory.core.contract.streaming.AIChunk
 import io.kory.core.utils.mapper.Mapper
 import io.kory.openai.shared.param.OpenAIServiceTier
 import io.kory.openai.completions.choice.OpenAIChunkChoice
@@ -49,7 +50,7 @@ data class OpenAIChatCompletionChunk(
     val usage: OpenAIUsage? = null,
     @SerialName("system_fingerprint") val systemFingerprint: String? = null,
     @SerialName("service_tier") val serviceTier: OpenAIServiceTier? = null,
-) : Mapper<ChatChunk> {
+) : AIChunk, Mapper<ChatChunk> {
     override fun map(): ChatChunk {
         return ChatChunk(
             choices = choices.flatMap { it.toChatChunkChoices() },

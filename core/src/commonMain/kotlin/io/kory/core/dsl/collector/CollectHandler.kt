@@ -1,6 +1,7 @@
 package io.kory.core.dsl.collector
 
 import io.kory.core.chat.chunk.ChatChunk
+import io.kory.core.contract.streaming.AIChunk
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
@@ -63,6 +64,6 @@ class CollectHandler<T> {
  * @sample io.kory.core.samples.utils.collector.collectChatStreamWithHandler
  * @sample io.kory.core.samples.extensions.chunk.collectingChunkUsingCollectHandler
  */
-suspend inline fun Flow<ChatChunk>.collectHandler(block: CollectHandler<ChatChunk>.() -> Unit) {
-    CollectHandler<ChatChunk>().apply(block).collectFrom(this)
+suspend inline fun <T : AIChunk> Flow<T>.collectHandler(block: CollectHandler<T>.() -> Unit) {
+    CollectHandler<T>().apply(block).collectFrom(this)
 }
