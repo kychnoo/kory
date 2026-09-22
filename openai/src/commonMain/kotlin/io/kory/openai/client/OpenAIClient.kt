@@ -34,6 +34,11 @@ import io.kory.openai.shared.error.OpenAIException
 import io.kory.openai.internal.extension.chat.toOpenAIChatCompletionRequest
 import io.kory.openai.internal.extension.exception.toException
 import io.kory.openai.internal.extension.toModels
+import io.kory.openai.responses.dsl.OpenAIResponsesRequestBuilder
+import io.kory.openai.responses.dsl.openAIResponsesRequest
+import io.kory.openai.responses.dto.OpenAIResponsesRequest
+import io.kory.openai.responses.dto.OpenAIResponsesResponse
+import io.kory.openai.responses.extension.toOpenAIResponseException
 import io.kory.openai.shared.serialization.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -142,6 +147,45 @@ class OpenAIClient(
     suspend fun chatCompletions(model: String, block: OpenAIChatCompletionRequestBuilder.() -> Unit): OpenAIChatCompletionResponse {
         return chatCompletions(openAIChatCompletionRequest(model, block))
     }
+
+    suspend fun chatResponses(request: OpenAIResponsesRequest): OpenAIResponsesResponse = withContext(Dispatchers.Default) {
+        runCatchingCancelable {
+            val response = client.post(
+                path = "responses",
+                json.encodeToString(request)
+            )
+
+            val decodedJson = json.decodeFromString<OpenAIResponsesResponse>(
+                response.body.decodeToString()
+            )
+
+            decodedJson.error?.let { error ->
+                throw error.toOpenAIResponseException(response.status)
+            }
+
+            decodedJson
+        }.getOrElse { th ->
+            throw when (th) {
+                is KoryHttpException.HttpStatus -> {
+                    if (th.body.isEmpty()) throw th
+                    val apiError = runCatching {
+                        json.decodeFromString<OpenAIResponsesResponse>(th.body.decodeToString()).error
+                    }.getOrNull()
+
+                    if (apiError != null) {
+                        throw apiError.toOpenAIResponseException(th.status)
+                    }
+                    throw th
+                }
+
+                else -> th
+            }
+        }
+    }
+
+    suspend fun chatResponses(model: String, block: OpenAIResponsesRequestBuilder.() -> Unit): OpenAIResponsesResponse =
+        chatResponses(openAIResponsesRequest(model, block))
+
 
     /**
      * Sends a chat request to the OpenAI and returns a non-streaming response.

@@ -10,10 +10,14 @@ import io.kory.core.extension.chunk.forEachChoice
 import io.kory.core.extension.throwable.runCatchingCancelable
 import io.kory.core.message.content.Content
 import io.kory.openai.client.OpenAIClient
-import io.kory.openai.completions.dsl.openAIChatCompletionRequest
+import io.kory.openai.internal.extension.client.chatResponsesCatching
 import kotlinx.coroutines.coroutineScope
 
-suspend fun runApp() = coroutineScope {
+suspend fun runApp() {
+    testResponsesAPI()
+}
+
+suspend fun testKoryAPI() = coroutineScope {
     val client = try {
         OpenAIClient(
             apiKey = ApiKey.fromEnv("GROQ_API_KEY"),
@@ -79,7 +83,6 @@ suspend fun runApp() = coroutineScope {
             onCompleted {
                 for (reasoning in reasoningOutput) {
                     println("Chunk ${reasoning.key} reasoning: ${reasoning.value}")
-
                 }
                 for (outp in output) {
                     println("Chunk ${outp.key} output: ${outp.value}")
@@ -92,5 +95,25 @@ suspend fun runApp() = coroutineScope {
         } else {
             println(error.message)
         }
+    }
+}
+
+suspend fun testResponsesAPI() = coroutineScope {
+    val apiKey = ApiKey.fromEnv("GROQ_API_KEY") { e ->
+        e.printStackTrace()
+        error("Program exited with error on getting API Key from system environment.")
+    }
+
+    val client = OpenAIClient(
+        apiKey = apiKey,
+        baseUrl = "https://api.groq.com/openai/v1/"
+    )
+
+    client.chatResponsesCatching("openai/gpt-oss-20b") {
+        inputText("Hello!")
+    }.onSuccess { response ->
+        println(response.printableOutput)
+    }.onFailure { error ->
+        println(error.message)
     }
 }
