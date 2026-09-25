@@ -4,6 +4,7 @@ import io.kory.ktor.data.remote.KoryHttpResponse
 import io.kory.ktor.data.remote.auth.KoryAuth
 import io.kory.ktor.data.remote.config.KoryHttpClientConfig
 import io.kory.ktor.data.remote.discovery.discoverKoryHttpEngineFactory
+import io.kory.ktor.data.remote.model.formdata.KoryFormDataPart
 import io.kory.ktor.exception.KoryHttpException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -16,6 +17,11 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.plugins.onUpload
+import io.ktor.client.request.delete
+import io.ktor.client.request.forms.InputProvider
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -25,7 +31,10 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.readRawBytes
 import io.ktor.client.statement.request
+import io.ktor.http.ContentDisposition
+import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
+import io.ktor.http.headers
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
@@ -64,7 +73,10 @@ class KoryHttpClient private constructor(
      * @throws KoryHttpException.Network if a network error occurs.
      */
     suspend fun post(path: String, body: String): KoryHttpResponse = runCatching {
-        client.post(path) { setBody(body) }
+        client.post(path) {
+            header(HttpHeaders.ContentType, "application/json; charset=utf-8")
+            setBody(body)
+        }
     }.mapCatching { response ->
         response.toKoryHttpResponseOrThrow()
     }.getOrElse { throw it.toKoryHttpException(path) }
@@ -83,6 +95,7 @@ class KoryHttpClient private constructor(
      */
     fun streamPost(path: String, body: String): Flow<String> = channelFlow {
         client.preparePost(path) {
+            header(HttpHeaders.ContentType, "application/json; charset=utf-8")
             setBody(body)
         }.execute { response ->
             if (!response.status.isSuccess()) {
@@ -122,6 +135,54 @@ class KoryHttpClient private constructor(
         }
     }
 
+    suspend fun postMultipart(
+        path: String,
+        parts: List<KoryFormDataPart>,
+        onProgress: ((Float) -> Unit)? = null
+    ): KoryHttpResponse = runCatching {
+        client.post(path) {
+            if (onProgress != null) {
+                onUpload { bytesSent, totalBytes ->
+                    if (totalBytes != null && totalBytes > 0) {
+                        val progress = (bytesSent.toDouble() / totalBytes).toFloat()
+                        onProgress(progress.coerceIn(0.0f, 1.0f))
+                    }
+                }
+            }
+
+            setBody(
+                MultiPartFormDataContent(
+                    formData {
+                        parts.forEach { part ->
+                            when (part) {
+                                is KoryFormDataPart.Text -> {
+                                    append(
+                                        key = "\"${part.name}\"",
+                                        value = part.value
+                                    )
+                                }
+                                is KoryFormDataPart.File -> {
+                                    val file = part.part
+                                    appendInput(
+                                        key = "\"file\"",
+                                        headers = Headers.build {
+                                            append(HttpHeaders.ContentType, file.mimeType)
+                                            append(HttpHeaders.ContentDisposition, "filename=\"${file.fileName}\"")
+                                        },
+                                        size = file.size,
+                                        block = { file.openStream() }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                )
+            )
+        }
+    }.mapCatching { response ->
+        response.toKoryHttpResponseOrThrow()
+    }.getOrElse { throw it.toKoryHttpException(path) }
+
     /**
      * Sends a GET request.
      *
@@ -132,7 +193,17 @@ class KoryHttpClient private constructor(
      * @throws KoryHttpException.Network if a network error occurs.
      */
     suspend fun get(path: String): KoryHttpResponse = runCatching {
-        client.get(path)
+        client.get(path) {
+            header(HttpHeaders.ContentType, "application/json; charset=utf-8")
+        }
+    }.mapCatching { response ->
+        response.toKoryHttpResponseOrThrow()
+    }.getOrElse { throw it.toKoryHttpException(path) }
+
+    suspend fun delete(path: String): KoryHttpResponse = runCatching {
+        client.delete(path) {
+            header(HttpHeaders.ContentType, "application/json; charset=utf-8")
+        }
     }.mapCatching { response ->
         response.toKoryHttpResponseOrThrow()
     }.getOrElse { throw it.toKoryHttpException(path) }
@@ -196,7 +267,6 @@ class KoryHttpClient private constructor(
                 }
                 defaultRequest {
                     url(config.baseUrl)
-                    header(HttpHeaders.ContentType, "application/json; charset=utf-8")
                     applyAuth(config.auth)
                     config.extraHeaders.forEach { (key, value) -> header(key, value) }
                 }

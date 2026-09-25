@@ -24,7 +24,9 @@ sealed class KoryHttpException(
         val status: Int,
         val body: ByteArray,
         val url: String,
-    ) : KoryHttpException("HTTP $status from $url")
+    ) : KoryHttpException("HTTP $status from $url") {
+        fun decodeBody(): String = body.decodeToString()
+    }
 
     /**
      * Network-level failure.
