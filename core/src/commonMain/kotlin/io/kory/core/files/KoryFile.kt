@@ -27,6 +27,10 @@ class KoryFile(val filePath: String) {
      */
     fun exists(): Boolean = SystemFileSystem.exists(path) && isFile()
 
+    fun existsOrThrow() {
+        if (!exists()) throwNotFoundException()
+    }
+
     private fun isFile(): Boolean {
         val metadata = SystemFileSystem.metadataOrNull(path) ?: return false
         return metadata.isRegularFile
@@ -83,6 +87,8 @@ class KoryFile(val filePath: String) {
      */
     fun openSource() = SystemFileSystem.source(path).buffered()
 
+    fun getSink() = SystemFileSystem.sink(path).buffered()
+
     /**
      * Detects the MIME type of the file.
      *
@@ -96,6 +102,11 @@ class KoryFile(val filePath: String) {
      * @return The detected MIME type string.
      */
     fun mimeTypeStr(): String = mimeType().value
+
+    fun delete() {
+        existsOrThrow()
+        SystemFileSystem.delete(path, false)
+    }
 
     /**
      * Returns the underlying Kotlinx IO [Path].
@@ -145,7 +156,7 @@ class KoryFile(val filePath: String) {
          *
          * @sample io.kory.core.samples.files.creatingFileUsingCreate
          */
-        fun create(path: String, rewriteExists: Boolean = false, block: (KoryFile) -> Unit): KoryFile {
+        fun create(path: String, rewriteExists: Boolean = false, block: ((KoryFile) -> Unit)? = null): KoryFile {
             val file = KoryFile(path)
             if (file.exists()) {
                 if (!rewriteExists) {
@@ -153,7 +164,7 @@ class KoryFile(val filePath: String) {
                 }
             }
             file.writeBytes(ByteArray(0))
-            block(file)
+            block?.invoke(file)
             return file
         }
     }

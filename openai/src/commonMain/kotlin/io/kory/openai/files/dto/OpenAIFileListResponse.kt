@@ -8,11 +8,17 @@ import kotlinx.serialization.Serializable
  *
  * @property data The list of uploaded files.
  * @property obj The object type (always `"list"`).
+ * @property firstId The ID of the first file in the list, if any.
+ * @property hasMore Whether there are more files available beyond this page.
+ * @property lastId The ID of the last file in the list, if any.
  */
 @Serializable
 data class OpenAIFileListResponse(
     val data: List<OpenAIFileObject>,
-    @SerialName("object") val obj: String = "list"
+    @SerialName("object") val obj: String = "list",
+    @SerialName("first_id") val firstId: String? = null,
+    @SerialName("has_more") val hasMore: Boolean,
+    @SerialName("last_id") val lastId: String? = null,
 ) {
     /**
      * Returns a human-readable description of all uploaded files.
@@ -21,6 +27,6 @@ data class OpenAIFileListResponse(
      */
     fun printableOutput(): String {
         if (data.isEmpty()) return "You don't have any uploads files"
-        return "Your files(filename: fileId): " + data.joinToString("\n") { "${it.filename}: ${it.id}" }
+        return "Your files(filename: fileId):\n" + data.joinToString("\n") { "${it.filename}: ${it.id}" }
     }
 }

@@ -6,6 +6,7 @@ import io.kory.core.files.KoryFile
 import io.kory.openai.client.OpenAIClient
 import io.kory.openai.files.dto.OpenAIFileDeleteResponse
 import io.kory.openai.files.dto.OpenAIFileListResponse
+import io.kory.openai.files.dto.OpenAIFileObject
 import io.kory.openai.files.dto.OpenAIUploadFileRequest
 import io.kory.openai.files.model.OpenAIFilePurpose
 import kotlinx.coroutines.coroutineScope
@@ -125,4 +126,28 @@ suspend fun deleteFileFromOpenAI(client: OpenAIClient, fileId: String) {
     val response: OpenAIFileDeleteResponse = client.deleteOpenAIFile(fileId)
 
     println(response.printableOutput())
+}
+
+suspend fun getFileFromOpenAI(client: OpenAIClient, fileId: String) {
+    val fileObject: OpenAIFileObject = client.retrieveOpenAIFile(fileId)
+
+    println("${fileObject.filename}: ${fileObject.id}")
+}
+
+suspend fun getFileContentFromOpenAI(client: OpenAIClient, fileId: String) {
+    // Returns the file's bytes as a ByteArray. Note that large files may cause an OutOfMemoryError.
+    // to stream the file, use the downloadOpenAIFileContentTo function.
+    val fileBytes: ByteArray = client.retrieveOpenAIFileContent(fileId)
+
+    println(fileBytes.contentToString())
+}
+
+suspend fun downloadFileContentFromOpenAIToFile(client: OpenAIClient, fileId: String) {
+    // Load data into a file in a stream (uses a Sink from the file, does not throw an OutOfMemoryError).
+    client.downloadOpenAIFileContentTo(
+        fileId = fileId,
+        file = KoryFile.create("filename.ext"),
+    ) { progress ->
+        println("Downloading progress: ${(progress * 100).toInt()}%")
+    }
 }

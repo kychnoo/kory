@@ -1,8 +1,11 @@
 package io.kory.openai.files.dto
 
 import io.kory.core.contract.file.AIFileResult
+import io.kory.openai.files.model.OpenAIPurpose
+import io.kory.openai.files.serialization.FlexibleInstantSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.time.Instant
 
 /**
  * A file object returned by the OpenAI Files API.
@@ -18,10 +21,26 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class OpenAIFileObject(
     override val id: String,
-    val bytes: Long,
+    val bytes: Long = 0L,
+    @Serializable(with = FlexibleInstantSerializer::class)
     @SerialName("created_at") val createdAt: Long,
-    val filename: String,
+    val filename: String = "",
     @SerialName("object") val obj: String = "file",
-    val purpose: String,
+    val purpose: OpenAIPurpose = OpenAIPurpose.ASSISTANTS,
+    @Serializable(with = FlexibleInstantSerializer::class)
     @SerialName("expires_at") val expiresAt: Long? = null
-) : AIFileResult
+) : AIFileResult {
+    /**
+     * Returns [createdAt] as an [Instant].
+     *
+     * @return The creation timestamp.
+     */
+    fun createdAtAsInstant(): Instant = Instant.fromEpochSeconds(createdAt)
+
+    /**
+     * Returns [expiresAt] as an [Instant], or `null` if the file never expires.
+     *
+     * @return The expiration timestamp, or `null`.
+     */
+    fun expiresAtAsInstant(): Instant? = if (expiresAt != null) Instant.fromEpochSeconds(expiresAt) else null
+}

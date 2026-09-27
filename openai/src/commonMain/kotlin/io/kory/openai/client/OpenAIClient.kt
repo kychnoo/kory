@@ -15,6 +15,7 @@ import io.kory.core.exception.tools.ToolExecutionException
 import io.kory.core.extension.content.asAssistantMessages
 import io.kory.core.extension.string.asAssistantMessage
 import io.kory.core.extension.throwable.runCatchingCancelable
+import io.kory.core.files.KoryFile
 import io.kory.core.message.Message
 import io.kory.core.message.Role
 import io.kory.core.message.content.Content
@@ -42,6 +43,8 @@ import io.kory.openai.files.dto.OpenAIFileListResponse
 import io.kory.openai.files.dto.OpenAIFileObject
 import io.kory.openai.files.dto.OpenAIUploadFileRequest
 import io.kory.openai.files.model.OpenAIFilePurpose
+import io.kory.openai.files.model.OpenAIOrder
+import io.kory.openai.files.model.OpenAIPurpose
 import io.kory.openai.shared.error.OpenAIErrorResponse
 import io.kory.openai.shared.error.OpenAIException
 import io.kory.openai.internal.extension.chat.toOpenAIChatCompletionRequest
@@ -811,15 +814,34 @@ class OpenAIClient(
     /* ================================== FILES. ================================== */
 
     /**
-     * Retrieves a list of all files uploaded to the OpenAI Files API.
+     * Retrieves a paginated list of files uploaded to the OpenAI Files API.
      *
-     * @return An [OpenAIFileListResponse] containing all uploaded files.
+     * @param after A cursor for pagination. Returns files after the given file ID.
+     * @param limit Maximum number of files to return.
+     * @param order Sort order by creation date.
+     * @param purpose Filter files by their intended purpose.
+     * @return An [OpenAIFileListResponse] containing the matching files.
      * @throws KoryHttpException if the request fails.
      *
+     * @see OpenAIOrder
+     * @see OpenAIPurpose
      * @sample io.kory.openai.samples.client.getAllFilesFromOpenAI
      */
-    suspend fun listOpenAIFiles(): OpenAIFileListResponse = withContext(Dispatchers.IO) {
-        val response = client.get("files")
+    suspend fun listOpenAIFiles(
+        after: String? = null,
+        limit: Int? = null,
+        order: OpenAIOrder? = null,
+        purpose: OpenAIPurpose? = null
+    ): OpenAIFileListResponse = withContext(Dispatchers.IO) {
+        val response = client.get(
+            path = "files",
+            params = mapOf(
+                "after" to after,
+                "limit" to limit,
+                "order" to order?.value,
+                "purpose" to purpose?.value
+            )
+        )
 
         json.decodeFromString(response.body.decodeToString())
     }
@@ -992,6 +1014,15 @@ class OpenAIClient(
     )
 
     /**
+     * @sample io.kory.openai.samples.client.getFileFromOpenAI
+     */
+    suspend fun retrieveOpenAIFile(fileId: String): OpenAIFileObject = withContext(Dispatchers.IO) {
+        val response = client.get("files/$fileId")
+
+        json.decodeFromString(response.body.decodeToString())
+    }
+
+    /**
      * Deletes a file from the OpenAI Files API.
      *
      * @param fileId The ID of the file to delete.
@@ -1004,5 +1035,51 @@ class OpenAIClient(
         val response = client.delete("files/$fileId")
 
         return json.decodeFromString(response.body.decodeToString())
+    }
+
+    /**
+     * Retrieves the raw content of a file from the OpenAI Files API.
+     *
+     * **Warning:** Loading large files directly into memory can cause an **OutOfMemoryError**.
+     * To stream large files safely, use [downloadOpenAIFileContentTo].
+     *
+     * @param fileId The ID of the file to retrieve.
+     * @return The file content as a byte array.
+     * @throws KoryHttpException if the request fails.
+     * @throws OpenAIException if the OpenAI API returns an error.
+     *
+     * @sample io.kory.openai.samples.client.getFileContentFromOpenAI
+     */
+    suspend fun retrieveOpenAIFileContent(fileId: String) : ByteArray {
+        val response = client.get("files/$fileId/content")
+        return response.body
+    }
+
+    /**
+     * Downloads a file from the OpenAI Files API and writes its content to a [KoryFile].
+     *
+     * @param fileId The ID of the file to download.
+     * @param file The destination file to write the content into.
+     * @param onProgress Optional callback for download progress (0.0–1.0).
+     * @return The total number of bytes written.
+     * @throws io.kory.core.exception.files.FileNotFoundException if the destination file does not exist.
+     * @throws KoryHttpException if the request fails.
+     * @throws OpenAIException if the OpenAI API returns an error.
+     *
+     * @sample io.kory.openai.samples.client.downloadFileContentFromOpenAIToFile
+     */
+    suspend fun downloadOpenAIFileContentTo(fileId: String, file: KoryFile, onProgress: ((Float) -> Unit)? = null): Long {
+        file.existsOrThrow()
+        return file.getSink().use { sink ->
+            client.download(
+                path = "files/$fileId/content",
+                sink = sink
+            ) { bytesWritten, totalBytes ->
+                if (totalBytes != null && totalBytes > 0) {
+                    val progress = (bytesWritten.toDouble() / totalBytes).toFloat()
+                    onProgress?.invoke(progress.coerceIn(0.0f, 1.0f))
+                }
+            }
+        }
     }
 }
