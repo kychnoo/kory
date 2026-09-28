@@ -12,14 +12,6 @@ kotlin {
     jvm()
     jvmToolchain(21)
 
-    iosArm64()
-    iosSimulatorArm64()
-    iosX64()
-    macosArm64()
-
-    mingwX64()
-    linuxX64()
-
     android {
         optimization {
             minify = true
@@ -42,21 +34,12 @@ kotlin {
     }
 
     sourceSets {
-        commonMain.dependencies {
-            api(project(":kory-ktor"))
-            implementation(libs.ktor.client.cio)
-        }
-
         getByName("jvmSharedMain") {
             dependencies {
                 api(project(":kory-ktor"))
 
                 implementation(libs.ktor.client.okhttp)
             }
-        }
-
-        commonTest {
-            kotlin.srcDir("src/samples/kotlin")
         }
     }
 }

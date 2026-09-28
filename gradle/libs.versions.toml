@@ -11,6 +11,7 @@ kotlinxIO = "0.9.1"
 ktor = "3.4.1"
 dokka = "2.2.0"
 logbackClassic = "1.6.3"
+agp = "9.4.0"
 
 [libraries]
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
@@ -31,10 +32,11 @@ ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "k
 
 logging-logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logbackClassic" }
 
+android-kmp-gradlePlugin = { module = "com.android.kotlin.multiplatform.library:com.android.kotlin.multiplatform.library.gradle.plugin", version.ref = "agp" }
+
 # Libraries can be bundled together for easier import
 [bundles]
 kotlinxEcosystem = ["kotlinxDatetime", "kotlinxSerialization", "kotlinxCoroutines"]
-ktorDependencies = ["ktor-client-content-negotiation", "ktor-serialization-json", "ktor-client-logging"]
 
 [plugins]
 kotlinPluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

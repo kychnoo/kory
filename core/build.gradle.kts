@@ -1,13 +1,14 @@
+@file:OptIn(ExperimentalKotlinGradlePluginApi::class)
+
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink
 
 plugins {
-    kotlin("multiplatform")
+    id("kory.kmp-library")
     alias(libs.plugins.kotlinPluginSerialization)
     alias(libs.plugins.dokka)
 }
-
-group = "io.kory.core"
-version = "0.0.1"
 
 dokka {
     dokkaSourceSets.commonMain {
@@ -27,11 +28,28 @@ kotlin {
     mingwX64()
     linuxX64()
 
+    applyDefaultHierarchyTemplate {
+        common {
+            group("jvmShared") {
+                withJvm()
+                withCompilations { it.platformType == KotlinPlatformType.androidJvm }
+            }
+        }
+    }
+
     sourceSets {
         commonMain.dependencies {
             implementation(libs.kotlinxCoroutines)
             implementation(libs.kotlinxSerialization)
             implementation(libs.kotlinxIoCore)
+        }
+
+        getByName("jvmSharedMain") {
+            dependencies {
+                api(project(":kory-ktor"))
+
+                implementation(libs.ktor.client.okhttp)
+            }
         }
 
         commonTest {

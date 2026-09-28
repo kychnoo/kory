@@ -24,6 +24,7 @@
             <option value="$PROJECT_DIR$/core" />
             <option value="$PROJECT_DIR$/kory-ktor" />
             <option value="$PROJECT_DIR$/kory-ktor-cio" />
+            <option value="$PROJECT_DIR$/kory-ktor-okhttp" />
             <option value="$PROJECT_DIR$/openai" />
           </set>
         </option>

@@ -2,19 +2,22 @@ package io.kory.app
 
 import io.kory.app.tools.TestWeatherTool
 import io.kory.core.chat.client.ApiKey
+import io.kory.core.chat.files.UploadFileState
 import io.kory.core.chat.reasoning.ReasoningConfig
 import io.kory.core.dsl.collector.collectHandler
 import io.kory.core.exception.KeyNotFoundException
 import io.kory.core.exception.KoryProviderException
 import io.kory.core.extension.chunk.forEachChoice
 import io.kory.core.extension.throwable.runCatchingCancelable
+import io.kory.core.files.KoryFile
 import io.kory.core.message.content.Content
+import io.kory.ktor.exception.KoryHttpException
 import io.kory.openai.client.OpenAIClient
 import io.kory.openai.internal.extension.client.chatResponsesCatching
 import kotlinx.coroutines.coroutineScope
 
 suspend fun runApp() {
-    testResponsesAPI()
+    testFilesAPI()
 }
 
 suspend fun testKoryAPI() = coroutineScope {
@@ -96,6 +99,60 @@ suspend fun testKoryAPI() = coroutineScope {
             println(error.message)
         }
     }
+}
+
+suspend fun testFilesAPI() = coroutineScope {
+    val apiKey = ApiKey.fromEnv("OPEN_ROUTER_API_KEY") { e ->
+        e.printStackTrace()
+        error("Program exited with error on getting API Key from system environment.")
+    }
+
+    val client = OpenAIClient(
+        apiKey = apiKey,
+        baseUrl = "https://openrouter.ai/api/v1/"
+    )
+
+    runCatchingCancelable {
+        client.listOpenAIFiles()
+    }.onSuccess { files ->
+        if (files.data.isEmpty()) {
+            println("You don't have any files.")
+        } else println(files.printableOutput())
+    }.onFailure { error ->
+        if (error is KoryHttpException.HttpStatus) {
+            println(error.body.decodeToString())
+        } else println(error.message)
+    }
+//
+//    val imageToUpload = KoryFile("C:\\Users\\vaces\\Pictures\\Screenshots\\Screenshot_174448.png")
+//
+//    if (!imageToUpload.exists()) { error("Image in path: ${imageToUpload.filePath} not found.") }
+
+    // Multi uploading.
+//
+//    val defaultPath = "C:\\Users\\vaces\\Pictures\\Screenshots\\"
+//
+//    runCatchingCancelable {
+//        client.downloadOpenAIFileContentTo(
+//            fileId = "or_file_0VWJEz713UahDvk5vA45pG10",
+//            file = KoryFile.create(defaultPath + "Screen_5")
+//        ) { progress ->
+//            println("Downloading file from OpenRouter, progress: $progress")
+//        }
+//    }.onSuccess { res -> println("File successfully loaded") }.onFailure { error -> println(error.message) }
+
+//    runCatchingCancelable {
+//        client.uploadOpenAIFiles(
+//            onProgress = { fileName, progress -> println("File with name: $fileName, progress: $progress") },
+//        ) {
+//            fileFromPath(defaultPath + "Screen_1.png")
+//            fileFromPath(defaultPath + "Screen_2.png")
+//        }
+//    }.onSuccess { results ->
+//        println(results.joinToString("\n") { it.printableOutput() })
+//    }.onFailure { error ->
+//        println(error.message)
+//    }
 }
 
 suspend fun testResponsesAPI() = coroutineScope {
