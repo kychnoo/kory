@@ -103,7 +103,7 @@ jobs:
         run: ./gradlew assembleAndroidMain --continue
 
       - name: Android Host Tests
-        run: ./gradlew androidHostTest --continue
+        run: ./gradlew testAndroidHostTest --continue
 
   windows:
     runs-on: windows-latest
