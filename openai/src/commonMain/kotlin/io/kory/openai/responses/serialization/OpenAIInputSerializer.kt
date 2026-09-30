@@ -1,12 +1,12 @@
 package io.kory.openai.responses.serialization
 
-import io.kory.openai.responses.input.OpenAIInput
-import io.kory.openai.responses.input.OpenAIInputItem
+import io.kory.openai.responses.io.OpenAIResponseInput
+import io.kory.openai.responses.io.items.OpenAIResponseInputItem
 
-object OpenAIInputSerializer : OpenAITextOrListSerializer<OpenAIInput, OpenAIInputItem>(
-    itemSerializer = OpenAIInputItem.serializer(),
-    createText = { OpenAIInput.Text(it) },
-    createList = { OpenAIInput.InputItemList(it) },
-    extractText = { (it as? OpenAIInput.Text)?.value },
-    extractList = { (it as? OpenAIInput.InputItemList)?.items }
+object OpenAIInputSerializer : OpenAITextOrListSerializer<OpenAIResponseInput, OpenAIResponseInputItem>(
+    itemSerializer = OpenAIResponseInputItem.serializer(),
+    createText = { OpenAIResponseInput.Text(it) },
+    createList = { OpenAIResponseInput.InputItemList(it) },
+    extractText = { (it as? OpenAIResponseInput.Text)?.value },
+    extractList = { (it as? OpenAIResponseInput.InputItemList)?.items }
 )

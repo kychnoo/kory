@@ -1,4 +1,4 @@
-package io.kory.openai.responses.output
+package io.kory.openai.responses.message.content
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -10,7 +10,8 @@ sealed interface OpenAIResponseOutputContent {
     sealed interface ReasoningContent {
         val printableContent: String
     }
-    @Serializable sealed interface OutputMessageContent {
+    @Serializable
+    sealed interface OutputMessageContent {
         val printableContent: String
     }
     val printableContent: String

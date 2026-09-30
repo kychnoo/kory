@@ -1,4 +1,4 @@
-package io.kory.openai.responses.output.error
+package io.kory.openai.responses.io.error
 
 import kotlinx.serialization.Serializable
 

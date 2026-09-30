@@ -2,23 +2,23 @@ package io.kory.openai.responses.dsl
 
 import io.kory.openai.completions.dsl.OpenAIRequestDsl
 import io.kory.openai.responses.dto.OpenAIResponsesRequest
-import io.kory.openai.responses.input.OpenAIInput
-import io.kory.openai.responses.input.OpenAIInputItem
+import io.kory.openai.responses.io.OpenAIResponseInput
+import io.kory.openai.responses.io.items.OpenAIResponseInputItem
 
 @OpenAIRequestDsl
 class OpenAIResponsesRequestBuilder {
     internal var model: String? = null
-    private var selectedInput: OpenAIInput? = null
+    private var selectedInput: OpenAIResponseInput? = null
 
     fun inputText(text: String) {
-        selectedInput = OpenAIInput.Text(text)
+        selectedInput = OpenAIResponseInput.Text(text)
     }
 
-    fun inputItems(items: List<OpenAIInputItem>) {
-        selectedInput = OpenAIInput.InputItemList(items)
+    fun inputItems(items: List<OpenAIResponseInputItem>) {
+        selectedInput = OpenAIResponseInput.InputItemList(items)
     }
 
-    fun inputItems(vararg items: OpenAIInputItem) {
+    fun inputItems(vararg items: OpenAIResponseInputItem) {
         inputItems(items.toList())
     }
 

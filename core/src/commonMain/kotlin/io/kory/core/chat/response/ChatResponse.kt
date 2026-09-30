@@ -24,4 +24,13 @@ import kotlinx.serialization.Serializable
 data class ChatResponse(
     val choices: List<ChatChoice>,
     val usage: TokensUsage? = null
-)
+) {
+    val output: List<Content.Response>
+        get() = choices.firstOrNull()?.contents.orEmpty()
+
+    val text: String
+        get() = output.filterIsInstance<Content.Text>().joinToString("") { it.text }
+
+    val toolCalls: List<Content.ToolCall>
+        get() = output.filterIsInstance<Content.ToolCall>()
+}

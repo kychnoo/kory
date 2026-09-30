@@ -1,6 +1,6 @@
 package io.kory.openai.responses.extension
 
-import io.kory.openai.responses.output.error.OpenAIResponseError
+import io.kory.openai.responses.io.error.OpenAIResponseError
 import io.kory.openai.shared.error.OpenAIResponseException
 
 fun OpenAIResponseError.toOpenAIResponseException(status: Int): OpenAIResponseException {

@@ -3,7 +3,7 @@ package io.kory.openai.shared.error
 import io.kory.core.exception.AIException
 import io.kory.core.exception.KoryProviderException
 import io.kory.core.utils.mapper.Mapper
-import io.kory.openai.responses.output.error.OpenAIResponseErrorMisalignment
+import io.kory.openai.responses.io.error.OpenAIResponseErrorMisalignment
 
 class OpenAIResponseException(
     val status: Int,
