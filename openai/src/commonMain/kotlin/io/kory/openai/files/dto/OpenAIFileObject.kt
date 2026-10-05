@@ -1,6 +1,9 @@
 package io.kory.openai.files.dto
 
 import io.kory.core.contract.file.AIFileResult
+import io.kory.core.files.MimeType
+import io.kory.core.files.api.ApiFile
+import io.kory.core.utils.mapper.Mapper
 import io.kory.openai.files.model.OpenAIPurpose
 import io.kory.openai.files.serialization.FlexibleInstantSerializer
 import kotlinx.serialization.SerialName
@@ -29,7 +32,18 @@ data class OpenAIFileObject(
     val purpose: OpenAIPurpose = OpenAIPurpose.ASSISTANTS,
     @Serializable(with = FlexibleInstantSerializer::class)
     @SerialName("expires_at") val expiresAt: Long? = null
-) : AIFileResult {
+) : AIFileResult, Mapper<ApiFile> {
+    override fun map(): ApiFile = ApiFile(
+        id = id,
+        name = filename,
+        mimeType = MimeType.tryDetect(filename),
+        sizeBytes = bytes,
+        createdAt = createdAt,
+        expiresAt = expiresAt,
+    )
+
+    fun toApiFile(): ApiFile = map()
+
     /**
      * Returns [createdAt] as an [Instant].
      *
@@ -43,4 +57,5 @@ data class OpenAIFileObject(
      * @return The expiration timestamp, or `null`.
      */
     fun expiresAtAsInstant(): Instant? = if (expiresAt != null) Instant.fromEpochSeconds(expiresAt) else null
+
 }

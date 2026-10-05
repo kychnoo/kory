@@ -7,15 +7,25 @@ import io.kory.core.chat.request.ChatRequest
 import io.kory.core.chat.response.ChatResponse
 import io.kory.core.chat.files.UploadFileResult
 import io.kory.core.chat.files.UploadFileState
+import io.kory.core.chat.request.files.UploadFileRequest
 import io.kory.core.dsl.chat.ChatBuilder
 import io.kory.core.dsl.chat.koryChat
 import io.kory.core.dsl.chat.request.ChatRequestBuilder
 import io.kory.core.dsl.chat.request.koryChatRequest
+import io.kory.core.dsl.files.UploadFileRequestBuilder
+import io.kory.core.dsl.files.uploadFileRequest
 import io.kory.core.exception.tools.ToolExecutionException
 import io.kory.core.extension.content.asAssistantMessages
 import io.kory.core.extension.string.asAssistantMessage
 import io.kory.core.extension.throwable.runCatchingCancelable
+import io.kory.core.files.FilesAPISupport
 import io.kory.core.files.KoryFile
+import io.kory.core.files.api.ApiFile
+import io.kory.core.files.api.ApiFilesList
+import io.kory.core.files.progress.MultiUploadFileProgress
+import io.kory.core.files.progress.SingleUploadFileProgress
+import io.kory.core.files.progress.UploadFileProgress
+import io.kory.core.files.progress.UploadFileProgressListener
 import io.kory.core.message.Message
 import io.kory.core.message.Role
 import io.kory.core.message.content.Content
@@ -49,6 +59,7 @@ import io.kory.openai.shared.error.OpenAIErrorResponse
 import io.kory.openai.shared.error.OpenAIException
 import io.kory.openai.internal.extension.chat.toOpenAIChatCompletionRequest
 import io.kory.openai.internal.extension.exception.toException
+import io.kory.openai.internal.extension.file.toOpenAIUploadFileRequest
 import io.kory.openai.internal.extension.toModels
 import io.kory.openai.responses.dsl.OpenAIResponsesRequestBuilder
 import io.kory.openai.responses.dsl.openAIResponsesRequest
@@ -106,7 +117,7 @@ class OpenAIClient(
     private val apiKey: ApiKey,
     private val baseUrl: String = "https://api.openai.com/v1",
     httpClient: KoryHttpClient? = null
-) : ChatClient, ToolCapable {
+) : ChatClient, ToolCapable, FilesAPISupport {
 
     private val client: KoryHttpClient = httpClient ?: KoryHttpClient.create(
         KoryHttpClientConfig(
@@ -850,7 +861,7 @@ class OpenAIClient(
      * Uploads a single file to the OpenAI Files API.
      *
      * @param request The upload request containing the file and its purpose.
-     * @param onProgress Optional callback for upload progress (0.0–1.0).
+     * @param onProgress Optional listener for upload progress (0.0–1.0).
      * @return An [OpenAIFileObject] representing the uploaded file.
      * @throws KoryHttpException if the request fails.
      *
@@ -858,7 +869,7 @@ class OpenAIClient(
      */
     suspend fun uploadOpenAIFile(
         request: OpenAIUploadFileRequest,
-        onProgress: ((Float) -> Unit)? = null
+        onProgress: UploadFileProgressListener<SingleUploadFileProgress>? = null
     ): OpenAIFileObject = withContext(Dispatchers.IO) {
         val filePart = KoryFilePart(
             name = "file",
@@ -876,7 +887,11 @@ class OpenAIClient(
         val response = client.postMultipart(
             path = "files",
             parts = parts,
-            onProgress = onProgress
+            onProgress = onProgress?.let { listener ->
+                { progressValue ->
+                    listener.onProgress(SingleUploadFileProgress((progressValue)))
+                }
+            }
         )
 
         json.decodeFromString(response.body.decodeToString())
@@ -885,7 +900,7 @@ class OpenAIClient(
     /**
      * Uploads a single file to the OpenAI Files API using the request DSL.
      *
-     * @param onProgress Optional callback for upload progress (0.0–1.0).
+     * @param onProgress Optional listener for upload progress (0.0–1.0).
      * @param purpose The purpose of the file. Defaults to [OpenAIFilePurpose.FINE_TUNE].
      * @param block DSL builder for configuring the upload request.
      * @return An [OpenAIFileObject] representing the uploaded file.
@@ -895,7 +910,7 @@ class OpenAIClient(
      * @sample io.kory.openai.samples.client.uploadSingleFileWithDSL
      */
     suspend fun uploadOpenAIFile(
-        onProgress: ((Float) -> Unit)? = null,
+        onProgress: UploadFileProgressListener<SingleUploadFileProgress>? = null,
         purpose: OpenAIFilePurpose = OpenAIFilePurpose.FINE_TUNE,
         block: OpenAIUploadFileRequestBuilder.() -> Unit
     ): OpenAIFileObject = uploadOpenAIFile(
@@ -911,15 +926,16 @@ class OpenAIClient(
      *
      * @param requests The list of upload requests.
      * @param maxConcurrency Maximum number of concurrent uploads. Defaults to `5`.
-     * @param onProgress Optional callback for per-file upload progress (fileName, progress).
+     * @param onProgress Optional listener for per-file upload progress.
      * @return A list of [UploadFileResult] objects (one per request).
      *
+     * @see MultiUploadFileProgress
      * @sample io.kory.openai.samples.client.uploadMultiplyFiles
      */
     suspend fun uploadOpenAIFiles(
         requests: List<OpenAIUploadFileRequest>,
         maxConcurrency: Int = 5,
-        onProgress: ((fileName: String, progress: Float) -> Unit)? = null
+        onProgress: UploadFileProgressListener<MultiUploadFileProgress>? = null
     ): List<UploadFileResult> = supervisorScope {
         val semaphore = Semaphore(maxConcurrency.coerceAtLeast(1))
         requests.map { request ->
@@ -927,8 +943,8 @@ class OpenAIClient(
                 semaphore.withPermit {
                     val fileName = request.file.getName()
                     runCatchingCancelable {
-                        uploadOpenAIFile(request) { progress ->
-                            onProgress?.invoke(fileName, progress)
+                        uploadOpenAIFile(request) { singleProgress ->
+                            onProgress?.onProgress(MultiUploadFileProgress(fileName, singleProgress.value))
                         }
                     }.fold(
                         onSuccess = { UploadFileResult.Success(fileName, it) },
@@ -943,16 +959,17 @@ class OpenAIClient(
      * Uploads multiple files to the OpenAI Files API using the DSL.
      *
      * @param maxConcurrency Maximum number of concurrent uploads. Defaults to `5`.
-     * @param onProgress Optional callback for per-file upload progress (fileName, progress).
+     * @param onProgress Optional listener for per-file upload progress.
      * @param requests DSL builder for configuring the upload requests.
      * @return A list of [UploadFileResult] objects (one per request).
      *
      * @see OpenAIUploadFilesBuilder
+     * @see MultiUploadFileProgress
      * @sample io.kory.openai.samples.client.uploadMultiplyFilesWithDSL
      */
     suspend fun uploadOpenAIFiles(
         maxConcurrency: Int = 5,
-        onProgress: ((fileName: String, progress: Float) -> Unit)? = null,
+        onProgress: UploadFileProgressListener<MultiUploadFileProgress>? = null,
         requests: OpenAIUploadFilesBuilder.() -> Unit,
     ): List<UploadFileResult> = uploadOpenAIFiles(
         requests = openAIUploadFilesRequest(requests),
@@ -982,7 +999,7 @@ class OpenAIClient(
                     val fileName = request.file.getName()
                     val result = runCatchingCancelable {
                         uploadOpenAIFile(request) { progress ->
-                            trySend(UploadFileState.Progress(fileName, progress))
+                            trySend(UploadFileState.Progress(MultiUploadFileProgress(fileName, progress.value)))
                         }
                     }.fold(
                         onSuccess = { UploadFileResult.Success(fileName, it) },
@@ -1060,7 +1077,7 @@ class OpenAIClient(
      *
      * @param fileId The ID of the file to download.
      * @param file The destination file to write the content into.
-     * @param onProgress Optional callback for download progress (0.0–1.0).
+     * @param onProgress Optional listener for download progress (0.0–1.0).
      * @return The total number of bytes written.
      * @throws io.kory.core.exception.files.FileNotFoundException if the destination file does not exist.
      * @throws KoryHttpException if the request fails.
@@ -1068,7 +1085,7 @@ class OpenAIClient(
      *
      * @sample io.kory.openai.samples.client.downloadFileContentFromOpenAIToFile
      */
-    suspend fun downloadOpenAIFileContentTo(fileId: String, file: KoryFile, onProgress: ((Float) -> Unit)? = null): Long {
+    suspend fun downloadOpenAIFileContentTo(fileId: String, file: KoryFile, onProgress: UploadFileProgressListener<SingleUploadFileProgress>? = null): Long {
         file.existsOrThrow()
         return file.getSink().use { sink ->
             client.download(
@@ -1077,9 +1094,75 @@ class OpenAIClient(
             ) { bytesWritten, totalBytes ->
                 if (totalBytes != null && totalBytes > 0) {
                     val progress = (bytesWritten.toDouble() / totalBytes).toFloat()
-                    onProgress?.invoke(progress.coerceIn(0.0f, 1.0f))
+                    onProgress?.onProgress(SingleUploadFileProgress(progress.coerceIn(0.0f, 1.0f)))
                 }
             }
         }
     }
+
+    /**
+     * Retrieves file objects by their IDs with controlled concurrency.
+     *
+     * If [ids] is empty, returns all files. Failed retrievals are silently skipped.
+     *
+     * @param ids The list of file IDs to retrieve.
+     * @param pageToken Pagination token (unused for OpenAI).
+     * @param concurrency Maximum number of concurrent requests.
+     * @return An [ApiFilesList] containing the retrieved files.
+     */
+    override suspend fun getFiles(
+        ids: List<String>,
+        pageToken: String?,
+        concurrency: Int
+    ): ApiFilesList {
+        return if (ids.isEmpty()) {
+            listOpenAIFiles().toApiFilesList()
+        } else {
+            val concurrentSemaphore = Semaphore(concurrency.coerceAtLeast(1))
+
+            supervisorScope {
+                val fileObjects = ids.map { id ->
+                    async {
+                        concurrentSemaphore.withPermit {
+                            runCatchingCancelable { retrieveOpenAIFile(id) }.getOrNull()
+                        }
+                    }
+                }.awaitAll().filterNotNull()
+
+                ApiFilesList(fileObjects.map { it.toApiFile() }, null)
+            }
+        }
+    }
+
+    /**
+     * Uploads a single file to the OpenAI Files API.
+     *
+     * @param request The upload request containing the file and its purpose.
+     * @param onProgress Optional listener for upload progress (0.0–1.0).
+     * @return An [ApiFile] representing the uploaded file.
+     *
+     * @see UploadFileRequest
+     * @see ApiFile
+     */
+    override suspend fun uploadFile(
+        request: UploadFileRequest,
+        onProgress: UploadFileProgressListener<SingleUploadFileProgress>?,
+    ): ApiFile = uploadOpenAIFile(
+        request = request.toOpenAIUploadFileRequest(),
+        onProgress = onProgress
+    ).toApiFile()
+
+    /**
+     * Uploads a single file to the OpenAI Files API using the request DSL.
+     *
+     * @param onProgress Optional listener for upload progress (0.0–1.0).
+     * @param block DSL builder for configuring the upload request.
+     * @return An [ApiFile] representing the uploaded file.
+     *
+     * @see UploadFileRequestBuilder
+     */
+    override suspend fun uploadFile(
+        onProgress: UploadFileProgressListener<SingleUploadFileProgress>?,
+        block: UploadFileRequestBuilder.() -> Unit
+    ): ApiFile = uploadFile(request = uploadFileRequest(block), onProgress = onProgress)
 }

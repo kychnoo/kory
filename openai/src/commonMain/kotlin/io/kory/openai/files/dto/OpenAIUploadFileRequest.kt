@@ -1,6 +1,8 @@
 package io.kory.openai.files.dto
 
+import io.kory.core.chat.request.files.UploadFileRequest
 import io.kory.core.files.KoryFile
+import io.kory.core.utils.mapper.Mapper
 import io.kory.openai.files.model.OpenAIExpiresAfter
 import io.kory.openai.files.model.OpenAIFilePurpose
 import kotlinx.serialization.SerialName
@@ -16,4 +18,11 @@ data class OpenAIUploadFileRequest(
     val file: KoryFile,
     val purpose: OpenAIFilePurpose,
     @SerialName("expires_after") val expiresAfter: OpenAIExpiresAfter? = null
-)
+): Mapper<UploadFileRequest> {
+    override fun map(): UploadFileRequest = UploadFileRequest(
+        file = file,
+        expiresAfterSeconds = expiresAfter?.seconds
+    )
+
+    fun toUploadRequest(): UploadFileRequest = map()
+}

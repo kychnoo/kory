@@ -1,5 +1,8 @@
 package io.kory.openai.files.dto
 
+import io.kory.core.contract.file.AIFileListResult
+import io.kory.core.files.api.ApiFilesList
+import io.kory.core.utils.mapper.Mapper
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -19,7 +22,17 @@ data class OpenAIFileListResponse(
     @SerialName("first_id") val firstId: String? = null,
     @SerialName("has_more") val hasMore: Boolean,
     @SerialName("last_id") val lastId: String? = null,
-) {
+) : AIFileListResult<OpenAIFileObject>, Mapper<ApiFilesList> {
+    override val files: List<OpenAIFileObject>
+        get() =  data
+
+    override fun map(): ApiFilesList = ApiFilesList(
+        files = data.map { it.map() },
+        nextPage = null
+    )
+
+    fun toApiFilesList(): ApiFilesList = map()
+
     /**
      * Returns a human-readable description of all uploaded files.
      *
@@ -29,4 +42,7 @@ data class OpenAIFileListResponse(
         if (data.isEmpty()) return "You don't have any uploads files"
         return "Your files(filename: fileId):\n" + data.joinToString("\n") { "${it.filename}: ${it.id}" }
     }
+
+    fun filesIds(): List<String> = data.map { it.id }
+
 }

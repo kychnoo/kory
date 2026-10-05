@@ -24,7 +24,7 @@ suspend fun uploadSingleFile(client: OpenAIClient) {
     val result = client.uploadOpenAIFile(
         request = OpenAIUploadFileRequest(file, purpose = OpenAIFilePurpose.FINE_TUNE)
     ) { uploadingProgress ->
-        println("Uploading file progress: ${(uploadingProgress * 100).toInt()}%")
+        println("Uploading file progress: ${uploadingProgress.percentage}%")
     }
 
     println("File successfully loaded, id: ${result.id}")
@@ -43,7 +43,7 @@ suspend fun safetyUploadSingleFile(client: OpenAIClient) = coroutineScope {
         client.uploadOpenAIFile(
             request = OpenAIUploadFileRequest(file, purpose = OpenAIFilePurpose.FINE_TUNE)
         ) { uploadingProgress ->
-            println("Uploading file progress: ${(uploadingProgress * 100).toInt()}%")
+            println("Uploading file progress: ${uploadingProgress.percentage}%")
         }
     }.onSuccess { result ->
         println("File successfully loaded, id: ${result.id}")
@@ -55,9 +55,9 @@ suspend fun safetyUploadSingleFile(client: OpenAIClient) = coroutineScope {
 suspend fun uploadSingleFileWithDSL(client: OpenAIClient) {
     // Upload file to OpenAI files API with DSL.
     val result = client.uploadOpenAIFile(
-        onProgress = { progress -> println("Uploading file progress: ${(progress * 100).toInt()}%") },
+        onProgress = { progress -> println("Uploading file progress: ${progress.percentage}%") },
     ) {
-        fileFromPath("path/to/file.ext") // This function can be throw a FileNotFoundException.
+        fileFromPath("path/to/file.ext") // This function can be thrown a FileNotFoundException.
     }
 
     println("File successfully loaded, id: ${result.id}")
@@ -72,8 +72,8 @@ suspend fun uploadMultiplyFiles(client: OpenAIClient) {
     val result = client.uploadOpenAIFiles(
         requests = requests,
         // You can set a max concurrency using filed: `maxConcurrency`, example: maxConcurrency = 2
-    ) { fileName, progress ->
-        println("Uploading file with name $fileName, progress: ${(progress * 100).toInt()}%")
+    ) { progress ->
+        println("Uploading file with name ${progress.fileName}, progress: ${progress.percentage}%")
     }
 
     println(result.joinToString("\n") { it.printableOutput() })
@@ -81,8 +81,8 @@ suspend fun uploadMultiplyFiles(client: OpenAIClient) {
 
 suspend fun uploadMultiplyFilesWithDSL(client: OpenAIClient) {
     val result = client.uploadOpenAIFiles(
-        onProgress = { fileName, progress ->
-            println("Uploading file with name $fileName, progress: ${(progress * 100).toInt()}%")
+        onProgress = { progress ->
+            println("Uploading file with name ${progress.fileName}, progress: ${progress.percentage}%")
         }
     ) {
         // You can set default purpose, it will be used in all requests in this dsl, example: defaultPurpose = OpenAIFilePurpose.ASSISTANTS
@@ -108,7 +108,9 @@ suspend fun uploadMultiplyFilesWithDSLAsFlow(client: OpenAIClient) {
                 println(fileStatus.result.printableOutput())
             }
             is UploadFileState.Progress -> {
-                println("Uploading file ${fileStatus.fileName} with progress: ${fileStatus.progress}")
+                // It's a multiply upload file progress.
+                val (filename, progress) = fileStatus.progress
+                println("Uploading file $filename with progress: $progress")
             }
         }
     }
@@ -148,6 +150,6 @@ suspend fun downloadFileContentFromOpenAIToFile(client: OpenAIClient, fileId: St
         fileId = fileId,
         file = KoryFile.create("filename.ext"),
     ) { progress ->
-        println("Downloading progress: ${(progress * 100).toInt()}%")
+        println("Downloading progress: ${progress.percentage}%")
     }
 }
