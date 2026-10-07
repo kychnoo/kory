@@ -5,7 +5,7 @@ package io.kory.core.files.progress
  *
  * @param T The type of progress event (single or multi-file).
  */
-fun interface UploadFileProgressListener<T : UploadFileProgress> {
+fun interface UploadFileProgressListener<T : FileProgress> {
     /**
      * Invoked when upload progress changes.
      *

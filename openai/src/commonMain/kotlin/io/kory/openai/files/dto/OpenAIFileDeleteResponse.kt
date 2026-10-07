@@ -1,5 +1,8 @@
 package io.kory.openai.files.dto
 
+import io.kory.core.files.api.DeleteApiFileResult
+import io.kory.core.contract.file.AIDeleteFileResult
+import io.kory.core.utils.mapper.Mapper
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -12,10 +15,10 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class OpenAIFileDeleteResponse(
-    val id: String,
+    override val id: String,
     @SerialName("object") val obj: String = "file",
     val deleted: Boolean
-) {
+) : AIDeleteFileResult, Mapper<DeleteApiFileResult> {
     /**
      * Returns a human-readable description of the deletion result.
      *
@@ -24,4 +27,11 @@ data class OpenAIFileDeleteResponse(
     fun printableOutput(): String {
         return if (deleted) "File successfully deleted" else "Unable to delete file"
     }
+
+    override fun map(): DeleteApiFileResult = DeleteApiFileResult(
+        id = id,
+        success = deleted
+    )
+
+    fun toDeleteApiFileResult(): DeleteApiFileResult = map()
 }

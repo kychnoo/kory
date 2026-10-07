@@ -5,7 +5,7 @@ import kotlin.jvm.JvmInline
 /**
  * Base interface for upload progress values.
  */
-sealed interface UploadFileProgress {
+sealed interface FileProgress {
     /** Progress as a fraction (0.0–1.0). */
     val value: Float
     /** Progress as a percentage (0–100). */
@@ -18,7 +18,7 @@ sealed interface UploadFileProgress {
  * @property value Progress as a fraction (0.0–1.0).
  */
 @JvmInline
-value class SingleUploadFileProgress(override val value: Float) : UploadFileProgress {
+value class SingleFileProgress(override val value: Float) : FileProgress {
     override val percentage: Int get() = (value * 100).toInt()
 }
 
@@ -28,6 +28,6 @@ value class SingleUploadFileProgress(override val value: Float) : UploadFileProg
  * @property fileName The name of the file being uploaded.
  * @property value Progress as a fraction (0.0–1.0).
  */
-data class MultiUploadFileProgress(val fileName: String, override val value: Float) : UploadFileProgress {
+data class MultiFileProgress(val fileName: String, override val value: Float) : FileProgress {
     override val percentage: Int get() = (value * 100).toInt()
 }

@@ -3,6 +3,8 @@ package io.kory.openai.client
 import io.kory.core.chat.client.ChatClient
 import io.kory.core.chat.chunk.ChatChunk
 import io.kory.core.chat.client.ApiKey
+import io.kory.core.chat.files.DeleteFileResult
+import io.kory.core.files.api.DeleteApiFileResult
 import io.kory.core.chat.request.ChatRequest
 import io.kory.core.chat.response.ChatResponse
 import io.kory.core.chat.files.UploadFileResult
@@ -13,7 +15,11 @@ import io.kory.core.dsl.chat.koryChat
 import io.kory.core.dsl.chat.request.ChatRequestBuilder
 import io.kory.core.dsl.chat.request.koryChatRequest
 import io.kory.core.dsl.files.UploadFileRequestBuilder
+import io.kory.core.dsl.files.UploadFilesRequestBuilder
 import io.kory.core.dsl.files.uploadFileRequest
+import io.kory.core.dsl.files.uploadFilesRequest
+import io.kory.core.exception.files.FileToDeleteNotSelectedException
+import io.kory.core.exception.files.upload.FileToUploadNotSelectedException
 import io.kory.core.exception.tools.ToolExecutionException
 import io.kory.core.extension.content.asAssistantMessages
 import io.kory.core.extension.string.asAssistantMessage
@@ -22,9 +28,8 @@ import io.kory.core.files.FilesAPISupport
 import io.kory.core.files.KoryFile
 import io.kory.core.files.api.ApiFile
 import io.kory.core.files.api.ApiFilesList
-import io.kory.core.files.progress.MultiUploadFileProgress
-import io.kory.core.files.progress.SingleUploadFileProgress
-import io.kory.core.files.progress.UploadFileProgress
+import io.kory.core.files.progress.MultiFileProgress
+import io.kory.core.files.progress.SingleFileProgress
 import io.kory.core.files.progress.UploadFileProgressListener
 import io.kory.core.message.Message
 import io.kory.core.message.Role
@@ -67,6 +72,7 @@ import io.kory.openai.responses.dto.OpenAIResponsesRequest
 import io.kory.openai.responses.dto.OpenAIResponsesResponse
 import io.kory.openai.responses.extension.toOpenAIResponseException
 import io.kory.openai.shared.serialization.json
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
@@ -132,6 +138,22 @@ class OpenAIClient(
             baseUrl: String = "https://api.openai.com/v1",
             httpClient: KoryHttpClient? = null
         ): OpenAIClient = OpenAIClient(ApiKey(apiKey), baseUrl, httpClient)
+    }
+
+    private suspend fun <T, R> runInSupervisorAsyncMap(
+        items: Iterable<T>,
+        maxConcurrency: Int = 5,
+        dispatcher: CoroutineDispatcher = Dispatchers.IO,
+        block: suspend (T) -> R
+    ): List<R> = supervisorScope {
+        val semaphore = Semaphore(maxConcurrency.coerceAtLeast(1))
+        items.map { item ->
+            async(dispatcher) {
+                semaphore.withPermit {
+                    block(item)
+                }
+            }
+        }.awaitAll()
     }
 
     /**
@@ -869,7 +891,7 @@ class OpenAIClient(
      */
     suspend fun uploadOpenAIFile(
         request: OpenAIUploadFileRequest,
-        onProgress: UploadFileProgressListener<SingleUploadFileProgress>? = null
+        onProgress: UploadFileProgressListener<SingleFileProgress>? = null
     ): OpenAIFileObject = withContext(Dispatchers.IO) {
         val filePart = KoryFilePart(
             name = "file",
@@ -889,7 +911,7 @@ class OpenAIClient(
             parts = parts,
             onProgress = onProgress?.let { listener ->
                 { progressValue ->
-                    listener.onProgress(SingleUploadFileProgress((progressValue)))
+                    listener.onProgress(SingleFileProgress((progressValue)))
                 }
             }
         )
@@ -910,7 +932,7 @@ class OpenAIClient(
      * @sample io.kory.openai.samples.client.uploadSingleFileWithDSL
      */
     suspend fun uploadOpenAIFile(
-        onProgress: UploadFileProgressListener<SingleUploadFileProgress>? = null,
+        onProgress: UploadFileProgressListener<SingleFileProgress>? = null,
         purpose: OpenAIFilePurpose = OpenAIFilePurpose.FINE_TUNE,
         block: OpenAIUploadFileRequestBuilder.() -> Unit
     ): OpenAIFileObject = uploadOpenAIFile(
@@ -929,30 +951,29 @@ class OpenAIClient(
      * @param onProgress Optional listener for per-file upload progress.
      * @return A list of [UploadFileResult] objects (one per request).
      *
-     * @see MultiUploadFileProgress
+     * @throws FileToUploadNotSelectedException if requests list is empty.
+     *
+     * @see MultiFileProgress
      * @sample io.kory.openai.samples.client.uploadMultiplyFiles
      */
     suspend fun uploadOpenAIFiles(
         requests: List<OpenAIUploadFileRequest>,
         maxConcurrency: Int = 5,
-        onProgress: UploadFileProgressListener<MultiUploadFileProgress>? = null
-    ): List<UploadFileResult> = supervisorScope {
-        val semaphore = Semaphore(maxConcurrency.coerceAtLeast(1))
-        requests.map { request ->
-            async(Dispatchers.IO) {
-                semaphore.withPermit {
-                    val fileName = request.file.getName()
-                    runCatchingCancelable {
-                        uploadOpenAIFile(request) { singleProgress ->
-                            onProgress?.onProgress(MultiUploadFileProgress(fileName, singleProgress.value))
-                        }
-                    }.fold(
-                        onSuccess = { UploadFileResult.Success(fileName, it) },
-                        onFailure = { UploadFileResult.Failure(fileName, it) }
-                    )
+        onProgress: UploadFileProgressListener<MultiFileProgress>? = null
+    ): List<UploadFileResult> {
+        if (requests.isEmpty()) throw FileToUploadNotSelectedException("Files to upload not selected.")
+
+        return runInSupervisorAsyncMap(requests, maxConcurrency) { request ->
+            val fileName = request.file.getName()
+            runCatchingCancelable {
+                uploadOpenAIFile(request) { singleProgress ->
+                    onProgress?.onProgress(MultiFileProgress(fileName, singleProgress.value))
                 }
-            }
-        }.awaitAll()
+            }.fold(
+                onSuccess = { UploadFileResult.Success(fileName, it) },
+                onFailure = { UploadFileResult.Failure(fileName, it) }
+            )
+        }
     }
 
     /**
@@ -964,12 +985,12 @@ class OpenAIClient(
      * @return A list of [UploadFileResult] objects (one per request).
      *
      * @see OpenAIUploadFilesBuilder
-     * @see MultiUploadFileProgress
+     * @see MultiFileProgress
      * @sample io.kory.openai.samples.client.uploadMultiplyFilesWithDSL
      */
     suspend fun uploadOpenAIFiles(
         maxConcurrency: Int = 5,
-        onProgress: UploadFileProgressListener<MultiUploadFileProgress>? = null,
+        onProgress: UploadFileProgressListener<MultiFileProgress>? = null,
         requests: OpenAIUploadFilesBuilder.() -> Unit,
     ): List<UploadFileResult> = uploadOpenAIFiles(
         requests = openAIUploadFilesRequest(requests),
@@ -999,7 +1020,7 @@ class OpenAIClient(
                     val fileName = request.file.getName()
                     val result = runCatchingCancelable {
                         uploadOpenAIFile(request) { progress ->
-                            trySend(UploadFileState.Progress(MultiUploadFileProgress(fileName, progress.value)))
+                            trySend(UploadFileState.Progress(MultiFileProgress(fileName, progress.value)))
                         }
                     }.fold(
                         onSuccess = { UploadFileResult.Success(fileName, it) },
@@ -1054,11 +1075,27 @@ class OpenAIClient(
         return json.decodeFromString(response.body.decodeToString())
     }
 
+    suspend fun deleteOpenAIFiles(
+        filesIds: List<String>,
+        maxConcurrency: Int = 5
+    ): List<DeleteFileResult> {
+        if (filesIds.isEmpty()) throw FileToDeleteNotSelectedException("Files to delete not selected", null)
+
+        return runInSupervisorAsyncMap(filesIds, maxConcurrency) { fileId ->
+            runCatchingCancelable {
+                deleteOpenAIFile(fileId)
+            }.fold(
+                onSuccess = { DeleteFileResult.Success(it) },
+                onFailure = { DeleteFileResult.Failure(it) }
+            )
+        }
+    }
+
     /**
      * Retrieves the raw content of a file from the OpenAI Files API.
      *
      * **Warning:** Loading large files directly into memory can cause an **OutOfMemoryError**.
-     * To stream large files safely, use [downloadOpenAIFileContentTo].
+     * To stream large files safely, use [streamOpenAIFileContent] or for download content to file use [downloadOpenAIFileContentTo].
      *
      * @param fileId The ID of the file to retrieve.
      * @return The file content as a byte array.
@@ -1085,7 +1122,7 @@ class OpenAIClient(
      *
      * @sample io.kory.openai.samples.client.downloadFileContentFromOpenAIToFile
      */
-    suspend fun downloadOpenAIFileContentTo(fileId: String, file: KoryFile, onProgress: UploadFileProgressListener<SingleUploadFileProgress>? = null): Long {
+    suspend fun downloadOpenAIFileContentTo(fileId: String, file: KoryFile, onProgress: UploadFileProgressListener<SingleFileProgress>? = null): Long {
         file.existsOrThrow()
         return file.getSink().use { sink ->
             client.download(
@@ -1094,11 +1131,13 @@ class OpenAIClient(
             ) { bytesWritten, totalBytes ->
                 if (totalBytes != null && totalBytes > 0) {
                     val progress = (bytesWritten.toDouble() / totalBytes).toFloat()
-                    onProgress?.onProgress(SingleUploadFileProgress(progress.coerceIn(0.0f, 1.0f)))
+                    onProgress?.onProgress(SingleFileProgress(progress.coerceIn(0.0f, 1.0f)))
                 }
             }
         }
     }
+
+    fun streamOpenAIFileContent(fileId: String): Flow<ByteArray> = client.streamGetBytes("files/$fileId/content")
 
     /**
      * Retrieves file objects by their IDs with controlled concurrency.
@@ -1146,7 +1185,7 @@ class OpenAIClient(
      */
     override suspend fun uploadFile(
         request: UploadFileRequest,
-        onProgress: UploadFileProgressListener<SingleUploadFileProgress>?,
+        onProgress: UploadFileProgressListener<SingleFileProgress>?,
     ): ApiFile = uploadOpenAIFile(
         request = request.toOpenAIUploadFileRequest(),
         onProgress = onProgress
@@ -1162,7 +1201,61 @@ class OpenAIClient(
      * @see UploadFileRequestBuilder
      */
     override suspend fun uploadFile(
-        onProgress: UploadFileProgressListener<SingleUploadFileProgress>?,
+        onProgress: UploadFileProgressListener<SingleFileProgress>?,
         block: UploadFileRequestBuilder.() -> Unit
     ): ApiFile = uploadFile(request = uploadFileRequest(block), onProgress = onProgress)
+
+    override suspend fun uploadFiles(
+        requests: List<UploadFileRequest>,
+        maxConcurrency: Int,
+        onProgress: UploadFileProgressListener<MultiFileProgress>?
+    ): List<UploadFileResult> = uploadOpenAIFiles(
+        requests = requests.map { it.toOpenAIUploadFileRequest() },
+        maxConcurrency = maxConcurrency,
+        onProgress = onProgress
+    ).map { result ->
+        when (result) {
+            is UploadFileResult.Success<*> -> {
+                val fileObject = result.fileObject
+                if (fileObject is OpenAIFileObject) {
+                    UploadFileResult.Success(result.fileName, fileObject.toApiFile())
+                } else result
+            }
+            is UploadFileResult.Failure -> result
+        }
+    }
+
+    override suspend fun uploadFiles(
+        maxConcurrency: Int,
+        onProgress: UploadFileProgressListener<MultiFileProgress>?,
+        block: UploadFilesRequestBuilder.() -> Unit
+    ): List<UploadFileResult> = uploadFiles(
+        requests = uploadFilesRequest(block),
+        maxConcurrency = maxConcurrency,
+        onProgress = onProgress
+    )
+
+    override suspend fun deleteFile(fileId: String): DeleteApiFileResult = deleteOpenAIFile(fileId).toDeleteApiFileResult()
+
+    override suspend fun deleteFiles(filesIds: List<String>): List<DeleteFileResult> = deleteOpenAIFiles(filesIds).map { result ->
+        when (result) {
+            is DeleteFileResult.Success<*> -> {
+                val res = result.result
+                if (res is OpenAIFileDeleteResponse) {
+                    DeleteFileResult.Success(res.toDeleteApiFileResult())
+                } else result
+            }
+            is DeleteFileResult.Failure -> result
+        }
+    }
+
+    override suspend fun getFileContent(fileId: String): ByteArray = retrieveOpenAIFileContent(fileId)
+
+    override suspend fun downloadFileContentTo(
+        fileId: String,
+        file: KoryFile,
+        onProgress: UploadFileProgressListener<SingleFileProgress>?
+    ): Long = downloadOpenAIFileContentTo(fileId, file, onProgress)
+
+    override fun streamFileContent(fileId: String): Flow<ByteArray> = streamOpenAIFileContent(fileId)
 }

@@ -1,5 +1,6 @@
 package io.kory.openai.files.dsl
 
+import io.kory.core.dsl.files.BaseUploadFilesBuilder
 import io.kory.core.exception.files.FileNotFoundException
 import io.kory.core.files.KoryFile
 import io.kory.openai.completions.dsl.OpenAIRequestDsl
@@ -13,9 +14,7 @@ import io.kory.openai.files.model.OpenAIFilePurpose
  * @see openAIUploadFilesRequest
  */
 @OpenAIRequestDsl
-class OpenAIUploadFilesBuilder {
-    private val fileRequests = linkedSetOf<OpenAIUploadFileRequest>()
-
+class OpenAIUploadFilesBuilder : BaseUploadFilesBuilder<OpenAIUploadFileRequest>() {
     /** Default purpose applied to files added without an explicit purpose. */
     var defaultPurpose: OpenAIFilePurpose = OpenAIFilePurpose.FINE_TUNE
 
@@ -27,7 +26,7 @@ class OpenAIUploadFilesBuilder {
      * @throws FileNotFoundException if the file does not exist.
      */
     fun file(file: KoryFile, purpose: OpenAIFilePurpose = defaultPurpose) {
-        if (!file.exists()) throw FileNotFoundException("File at path ${file.filePath} not found")
+        validateFile(file)
         fileRequests.add(OpenAIUploadFileRequest(file, purpose))
     }
 
@@ -99,9 +98,7 @@ class OpenAIUploadFilesBuilder {
         fileRequests.addAll(requests)
     }
 
-    internal fun build(): List<OpenAIUploadFileRequest> {
-        return fileRequests.toList()
-    }
+    fun buildRequest(): List<OpenAIUploadFileRequest> = build()
 }
 
 /**
@@ -113,5 +110,5 @@ class OpenAIUploadFilesBuilder {
  * @sample io.kory.openai.samples.files.createUploadFileRequestsUsingBuilder
  */
 fun openAIUploadFilesRequest(block: OpenAIUploadFilesBuilder.() -> Unit): List<OpenAIUploadFileRequest> {
-    return OpenAIUploadFilesBuilder().apply(block).build()
+    return OpenAIUploadFilesBuilder().apply(block).buildRequest()
 }

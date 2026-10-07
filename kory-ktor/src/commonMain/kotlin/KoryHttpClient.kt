@@ -42,11 +42,14 @@ import io.ktor.http.headers
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.CancellationException
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.io.IOException
 import kotlinx.io.Sink
 import kotlinx.serialization.json.Json
@@ -85,7 +88,10 @@ class KoryHttpClient private constructor(
         }
     }.mapCatching { response ->
         response.toKoryHttpResponseOrThrow()
-    }.getOrElse { throw it.toKoryHttpException(path) }
+    }.getOrElse {
+        if (it is CancellationException) throw it
+        throw it.toKoryHttpException(path)
+    }
 
 
 
@@ -187,7 +193,10 @@ class KoryHttpClient private constructor(
         }
     }.mapCatching { response ->
         response.toKoryHttpResponseOrThrow()
-    }.getOrElse { throw it.toKoryHttpException(path) }
+    }.getOrElse {
+        if (it is CancellationException) throw it
+        throw it.toKoryHttpException(path)
+    }
 
     /**
      * Sends a GET request.
@@ -210,7 +219,10 @@ class KoryHttpClient private constructor(
         }
     }.mapCatching { response ->
         response.toKoryHttpResponseOrThrow()
-    }.getOrElse { throw it.toKoryHttpException(path) }
+    }.getOrElse {
+        if (it is CancellationException) throw it
+        throw it.toKoryHttpException(path)
+    }
 
     suspend fun <T> streamGet(
         path: String,
@@ -236,7 +248,10 @@ class KoryHttpClient private constructor(
                 )
             )
         }
-    }.getOrElse { throw it.toKoryHttpException(path) }
+    }.getOrElse {
+        if (it is CancellationException) throw it
+        throw it.toKoryHttpException(path)
+    }
 
     suspend fun delete(path: String): KoryHttpResponse = runCatching {
         client.delete(path) {
@@ -244,7 +259,39 @@ class KoryHttpClient private constructor(
         }
     }.mapCatching { response ->
         response.toKoryHttpResponseOrThrow()
-    }.getOrElse { throw it.toKoryHttpException(path) }
+    }.getOrElse {
+        if (it is CancellationException) throw it
+        throw it.toKoryHttpException(path)
+    }
+
+    fun streamGetBytes(
+        path: String,
+        chunkSize: Int = DOWNLOAD_BUFFER_SIZE,
+    ): Flow<ByteArray> = flow {
+        client.prepareGet(path) {
+            header(HttpHeaders.ContentType, "application/json; charset=utf-8")
+            timeout { requestTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS }
+        }.execute { response ->
+            if (!response.status.isSuccess()) {
+                throw KoryHttpException.HttpStatus(
+                    status = response.status.value,
+                    body = response.readRawBytes(),
+                    url = path,
+                )
+            }
+            val channel = response.bodyAsChannel()
+            val chunk = ByteArray(chunkSize)
+            while (true) {
+                val read = channel.readAvailable(chunk, 0, chunk.size)
+                if (read == -1) break
+                if (read == 0) continue
+                emit(chunk.copyOf(read))
+            }
+        }
+    }.catch { e ->
+        if (e is CancellationException) throw e
+        throw e.toKoryHttpException(path)
+    }
 
     suspend fun download(
         path: String,

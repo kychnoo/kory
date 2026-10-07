@@ -1,6 +1,6 @@
 package io.kory.core.chat.files
 
-import io.kory.core.files.progress.MultiUploadFileProgress
+import io.kory.core.files.progress.MultiFileProgress
 
 /**
  * State of a file upload emitted as a [Flow][kotlinx.coroutines.flow.Flow].
@@ -12,7 +12,7 @@ sealed interface UploadFileState {
      * @property progress The current multi-file progress.
      */
     data class Progress(
-        val progress: MultiUploadFileProgress
+        val progress: MultiFileProgress
     ) : UploadFileState
 
     /**
