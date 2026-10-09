@@ -1137,6 +1137,14 @@ class OpenAIClient(
         }
     }
 
+    /**
+     * Streams the content of a file from the OpenAI Files API as a [Flow] of byte arrays.
+     *
+     * @param fileId The ID of the file.
+     * @return A [Flow] emitting chunks of the file content.
+     *
+     * @sample io.kory.openai.samples.client.gettingFileContentAsFlow
+     */
     fun streamOpenAIFileContent(fileId: String): Flow<ByteArray> = client.streamGetBytes("files/$fileId/content")
 
     /**
@@ -1148,6 +1156,10 @@ class OpenAIClient(
      * @param pageToken Pagination token (unused for OpenAI).
      * @param concurrency Maximum number of concurrent requests.
      * @return An [ApiFilesList] containing the retrieved files.
+     *
+     * @sample io.kory.core.samples.files.gettingAllFilesFromAPI
+     * @sample io.kory.core.samples.files.gettingFilesByIds
+     * @sample io.kory.core.samples.files.gettingSingleFileUsingFromFilesAPI
      */
     override suspend fun getFiles(
         ids: List<String>,
@@ -1182,6 +1194,8 @@ class OpenAIClient(
      *
      * @see UploadFileRequest
      * @see ApiFile
+     *
+     * @sample io.kory.core.samples.files.uploadingSingleFileToAPIWithoutDSL
      */
     override suspend fun uploadFile(
         request: UploadFileRequest,
@@ -1199,12 +1213,24 @@ class OpenAIClient(
      * @return An [ApiFile] representing the uploaded file.
      *
      * @see UploadFileRequestBuilder
+     *
+     * @sample io.kory.core.samples.files.uploadingSingleFileToAPIWithDSL
      */
     override suspend fun uploadFile(
         onProgress: UploadFileProgressListener<SingleFileProgress>?,
         block: UploadFileRequestBuilder.() -> Unit
     ): ApiFile = uploadFile(request = uploadFileRequest(block), onProgress = onProgress)
 
+    /**
+     * Uploads multiple files with controlled concurrency.
+     *
+     * @param requests The list of upload requests.
+     * @param maxConcurrency Maximum number of concurrent uploads.
+     * @param onProgress Optional listener for per-file upload progress.
+     * @return A list of [UploadFileResult] objects.
+     *
+     * @sample io.kory.core.samples.files.uploadingFilesToAPIWithoutDSL
+     */
     override suspend fun uploadFiles(
         requests: List<UploadFileRequest>,
         maxConcurrency: Int,
@@ -1225,6 +1251,16 @@ class OpenAIClient(
         }
     }
 
+    /**
+     * Uploads multiple files using the request DSL.
+     *
+     * @param maxConcurrency Maximum number of concurrent uploads.
+     * @param onProgress Optional listener for per-file upload progress.
+     * @param block DSL builder for configuring the upload requests.
+     * @return A list of [UploadFileResult] objects.
+     *
+     * @sample io.kory.core.samples.files.uploadingFilesToAPIWithDSL
+     */
     override suspend fun uploadFiles(
         maxConcurrency: Int,
         onProgress: UploadFileProgressListener<MultiFileProgress>?,
@@ -1235,9 +1271,29 @@ class OpenAIClient(
         onProgress = onProgress
     )
 
+    /**
+     * Deletes a single file by its ID.
+     *
+     * @param fileId The ID of the file to delete.
+     * @return A [DeleteApiFileResult] confirming the deletion.
+     *
+     * @sample io.kory.core.samples.files.deleteFileFromAPI
+     */
     override suspend fun deleteFile(fileId: String): DeleteApiFileResult = deleteOpenAIFile(fileId).toDeleteApiFileResult()
 
-    override suspend fun deleteFiles(filesIds: List<String>): List<DeleteFileResult> = deleteOpenAIFiles(filesIds).map { result ->
+    /**
+     * Deletes multiple files with controlled concurrency.
+     *
+     * @param filesIds The list of file IDs to delete.
+     * @param maxConcurrency Maximum number of concurrent deletions.
+     * @return A list of [DeleteFileResult] objects.
+     *
+     * @sample io.kory.core.samples.files.deleteFilesFromAPI
+     */
+    override suspend fun deleteFiles(
+        filesIds: List<String>,
+        maxConcurrency: Int
+    ): List<DeleteFileResult> = deleteOpenAIFiles(filesIds, maxConcurrency).map { result ->
         when (result) {
             is DeleteFileResult.Success<*> -> {
                 val res = result.result
@@ -1249,13 +1305,39 @@ class OpenAIClient(
         }
     }
 
+    /**
+     * Retrieves the raw content of a file as a byte array.
+     *
+     * @param fileId The ID of the file.
+     * @return The file content.
+     *
+     * @sample io.kory.core.samples.files.gettingFileContentAsByteArray
+     */
     override suspend fun getFileContent(fileId: String): ByteArray = retrieveOpenAIFileContent(fileId)
 
+    /**
+     * Downloads a file's content and writes it to a [KoryFile].
+     *
+     * @param fileId The ID of the file to download.
+     * @param file The destination file.
+     * @param onProgress Optional listener for download progress (0.0–1.0).
+     * @return The total number of bytes written.
+     *
+     * @sample io.kory.core.samples.files.downloadingFileContentToFile
+     */
     override suspend fun downloadFileContentTo(
         fileId: String,
         file: KoryFile,
         onProgress: UploadFileProgressListener<SingleFileProgress>?
     ): Long = downloadOpenAIFileContentTo(fileId, file, onProgress)
 
+    /**
+     * Streams a file's content as a [Flow] of byte arrays.
+     *
+     * @param fileId The ID of the file.
+     * @return A [Flow] emitting chunks of the file content.
+     *
+     * @sample io.kory.core.samples.files.gettingFileContentAsFlow
+     */
     override fun streamFileContent(fileId: String): Flow<ByteArray> = streamOpenAIFileContent(fileId)
 }

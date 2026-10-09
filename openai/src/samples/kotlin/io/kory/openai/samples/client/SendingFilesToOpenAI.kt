@@ -153,3 +153,10 @@ suspend fun downloadFileContentFromOpenAIToFile(client: OpenAIClient, fileId: St
         println("Downloading progress: ${progress.percentage}%")
     }
 }
+
+suspend fun gettingFileContentAsFlow(client: OpenAIClient) {
+    // To stream file content use streamOpenAIFileContent() function.
+    client.streamOpenAIFileContent("file_id").collect { bytesChunk ->
+        println(bytesChunk.contentToString())
+    }
+}
