@@ -1,13 +1,10 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink
 
 plugins {
-    kotlin("multiplatform")
+    id("kory.kmp-library")
     alias(libs.plugins.kotlinPluginSerialization)
     alias(libs.plugins.dokka)
 }
-
-group = "io.kory.openai"
-version = "0.0.1"
 
 dokka {
     dokkaSourceSets.commonMain {

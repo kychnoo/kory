@@ -4,6 +4,7 @@ import io.kory.core.message.content.ContentPart
 import io.kory.core.message.content.source.ImageSource
 import io.kory.core.utils.mapper.Mapper
 import io.kory.openai.completions.message.content.image.OpenAIImageUrl
+import io.kory.openai.shared.param.OpenAIDetail
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -42,7 +43,8 @@ sealed interface OpenAIChatCompletionContentPart {
     @SerialName("image_url")
     @Serializable
     data class Image(
-        @SerialName("image_url") val imageUrl: OpenAIImageUrl
+        @SerialName("image_url") val imageUrl: OpenAIImageUrl,
+        @SerialName("detail") val detail: OpenAIDetail? = null,
     ) : OpenAIChatCompletionContentPart, Mapper<ContentPart> {
         override fun map(): ContentPart = ContentPart.Image(source = ImageSource.fromString(imageUrl.url))
         override fun toContentPart(): ContentPart = map()

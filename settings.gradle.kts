@@ -7,6 +7,7 @@ pluginManagement {
     repositories {
         gradlePluginPortal()
         mavenCentral()
+        google()
     }
 }
 
@@ -16,6 +17,7 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     @Suppress("UnstableApiUsage")
     repositories {
+        google()
         mavenCentral()
     }
 }
@@ -35,4 +37,4 @@ include(":core")
 include("openai")
 include("kory-ktor")
 include("kory-ktor-cio")
-include(":app")
+include("kory-ktor-okhttp")

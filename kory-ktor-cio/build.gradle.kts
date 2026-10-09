@@ -1,10 +1,12 @@
+@file:OptIn(ExperimentalKotlinGradlePluginApi::class)
+
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
+
 plugins {
-    kotlin("multiplatform")
+    id("kory.kmp-library")
     alias(libs.plugins.dokka)
 }
-
-group = "io.kory.ktor-cio"
-version = "0.0.1"
 
 kotlin {
     jvm()
@@ -18,13 +20,40 @@ kotlin {
     mingwX64()
     linuxX64()
 
+    android {
+        optimization {
+            minify = true
+
+            consumerKeepRules.apply {
+                publish = true
+
+                files("consumer-rules.pro")
+            }
+        }
+    }
+
+    applyDefaultHierarchyTemplate {
+        common {
+            group("jvmShared") {
+                withJvm()
+                withCompilations { it.platformType == KotlinPlatformType.androidJvm }
+            }
+        }
+    }
+
     sourceSets {
         commonMain.dependencies {
             api(project(":kory-ktor"))
             implementation(libs.ktor.client.cio)
         }
 
-        jvmMain
+        getByName("jvmSharedMain") {
+            dependencies {
+                api(project(":kory-ktor"))
+
+                implementation(libs.ktor.client.okhttp)
+            }
+        }
 
         commonTest {
             kotlin.srcDir("src/samples/kotlin")

@@ -1,15 +1,15 @@
+@file:OptIn(ExperimentalKotlinGradlePluginApi::class)
+
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
+
 plugins {
-    kotlin("multiplatform")
+    id("kory.kmp-library")
     alias(libs.plugins.kotlinPluginSerialization)
     alias(libs.plugins.dokka)
 }
 
-group = "io.kory.ktor"
-version = "0.0.1"
-
 kotlin {
-    applyDefaultHierarchyTemplate()
-
     jvm()
     jvmToolchain(21)
 
@@ -20,6 +20,15 @@ kotlin {
 
     mingwX64()
     linuxX64()
+
+    applyDefaultHierarchyTemplate {
+        common {
+            group("jvmShared") {
+                withJvm()
+                withCompilations { it.platformType == KotlinPlatformType.androidJvm }
+            }
+        }
+    }
 
     sourceSets {
         commonMain.dependencies {
@@ -33,7 +42,7 @@ kotlin {
             implementation(libs.kotlinxCoroutines)
         }
 
-        jvmMain
+        getByName("jvmSharedMain")
         nativeMain
 
         commonTest {
@@ -44,19 +53,19 @@ kotlin {
             }
         }
 
-        val mingwX64Main by getting {
+        mingwX64Main {
             dependencies {
                 implementation(libs.ktor.client.winhttp)
             }
         }
 
-        val linuxX64Main by getting {
+        linuxX64Main {
             dependencies {
                 implementation(libs.ktor.client.curl)
             }
         }
 
-        val appleMain by getting {
+        appleMain {
             dependencies {
                 implementation(libs.ktor.client.darwin)
             }

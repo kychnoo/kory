@@ -4,6 +4,8 @@ import io.kory.ktor.data.remote.KoryHttpResponse
 import io.kory.ktor.data.remote.auth.KoryAuth
 import io.kory.ktor.data.remote.config.KoryHttpClientConfig
 import io.kory.ktor.data.remote.discovery.discoverKoryHttpEngineFactory
+import io.kory.ktor.data.remote.model.KoryHttpStreamResponse
+import io.kory.ktor.data.remote.model.formdata.KoryFormDataPart
 import io.kory.ktor.exception.KoryHttpException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -12,32 +14,48 @@ import io.ktor.client.network.sockets.SocketTimeoutException
 import io.ktor.client.plugins.DefaultRequest
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.HttpTimeoutConfig
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.plugins.onUpload
+import io.ktor.client.plugins.timeout
+import io.ktor.client.request.delete
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.prepareGet
 import io.ktor.client.request.preparePost
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.readRawBytes
 import io.ktor.client.statement.request
+import io.ktor.http.ContentDisposition
+import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
+import io.ktor.http.headers
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.CancellationException
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.io.IOException
+import kotlinx.io.Sink
 import kotlinx.serialization.json.Json
 
 private const val DEFAULT_BUFFER_SIZE = 8096
+private const val DOWNLOAD_BUFFER_SIZE = 64 * 1024
 
 /**
  * HTTP client wrapper for Kory, providing POST, GET, and streaming POST methods.
@@ -64,10 +82,16 @@ class KoryHttpClient private constructor(
      * @throws KoryHttpException.Network if a network error occurs.
      */
     suspend fun post(path: String, body: String): KoryHttpResponse = runCatching {
-        client.post(path) { setBody(body) }
+        client.post(path) {
+            header(HttpHeaders.ContentType, "application/json; charset=utf-8")
+            setBody(body)
+        }
     }.mapCatching { response ->
         response.toKoryHttpResponseOrThrow()
-    }.getOrElse { throw it.toKoryHttpException(path) }
+    }.getOrElse {
+        if (it is CancellationException) throw it
+        throw it.toKoryHttpException(path)
+    }
 
 
 
@@ -83,6 +107,7 @@ class KoryHttpClient private constructor(
      */
     fun streamPost(path: String, body: String): Flow<String> = channelFlow {
         client.preparePost(path) {
+            header(HttpHeaders.ContentType, "application/json; charset=utf-8")
             setBody(body)
         }.execute { response ->
             if (!response.status.isSuccess()) {
@@ -122,6 +147,57 @@ class KoryHttpClient private constructor(
         }
     }
 
+    suspend fun postMultipart(
+        path: String,
+        parts: List<KoryFormDataPart>,
+        onProgress: ((Float) -> Unit)? = null
+    ): KoryHttpResponse = runCatching {
+        client.post(path) {
+            if (onProgress != null) {
+                onUpload { bytesSent, totalBytes ->
+                    if (totalBytes != null && totalBytes > 0) {
+                        val progress = (bytesSent.toDouble() / totalBytes).toFloat()
+                        onProgress(progress.coerceIn(0.0f, 1.0f))
+                    }
+                }
+            }
+
+            setBody(
+                MultiPartFormDataContent(
+                    formData {
+                        parts.forEach { part ->
+                            when (part) {
+                                is KoryFormDataPart.Text -> {
+                                    append(
+                                        key = "\"${part.name}\"",
+                                        value = part.value
+                                    )
+                                }
+                                is KoryFormDataPart.File -> {
+                                    val file = part.part
+                                    appendInput(
+                                        key = "\"file\"",
+                                        headers = Headers.build {
+                                            append(HttpHeaders.ContentType, file.mimeType)
+                                            append(HttpHeaders.ContentDisposition, "filename=\"${file.fileName}\"")
+                                        },
+                                        size = file.size,
+                                        block = { file.openStream() }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                )
+            )
+        }
+    }.mapCatching { response ->
+        response.toKoryHttpResponseOrThrow()
+    }.getOrElse {
+        if (it is CancellationException) throw it
+        throw it.toKoryHttpException(path)
+    }
+
     /**
      * Sends a GET request.
      *
@@ -131,11 +207,112 @@ class KoryHttpClient private constructor(
      * @throws KoryHttpException.Timeout if the request times out.
      * @throws KoryHttpException.Network if a network error occurs.
      */
-    suspend fun get(path: String): KoryHttpResponse = runCatching {
-        client.get(path)
+    suspend fun get(path: String, params: Map<String, Any?> = emptyMap()): KoryHttpResponse = runCatching {
+        client.get(path) {
+            header(HttpHeaders.ContentType, "application/json; charset=utf-8")
+
+            params.forEach { (key, value) ->
+                if (value != null) {
+                    parameter(key, value)
+                }
+            }
+        }
     }.mapCatching { response ->
         response.toKoryHttpResponseOrThrow()
-    }.getOrElse { throw it.toKoryHttpException(path) }
+    }.getOrElse {
+        if (it is CancellationException) throw it
+        throw it.toKoryHttpException(path)
+    }
+
+    suspend fun <T> streamGet(
+        path: String,
+        block: suspend (KoryHttpStreamResponse) -> T
+    ): T = runCatching {
+        client.prepareGet(path) {
+            header(HttpHeaders.ContentType, "application/json; charset=utf-8")
+            timeout { requestTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS }
+        }.execute { response ->
+            if (!response.status.isSuccess()) {
+                throw KoryHttpException.HttpStatus(
+                    status = response.status.value,
+                    body = response.readRawBytes(),
+                    url = path,
+                )
+            }
+            block(
+                KoryHttpStreamResponse(
+                    status = response.status.value,
+                    headers = response.headers,
+                    contentLength = response.headers[HttpHeaders.ContentLength]?.toLongOrNull(),
+                    body = response.bodyAsChannel(),
+                )
+            )
+        }
+    }.getOrElse {
+        if (it is CancellationException) throw it
+        throw it.toKoryHttpException(path)
+    }
+
+    suspend fun delete(path: String): KoryHttpResponse = runCatching {
+        client.delete(path) {
+            header(HttpHeaders.ContentType, "application/json; charset=utf-8")
+        }
+    }.mapCatching { response ->
+        response.toKoryHttpResponseOrThrow()
+    }.getOrElse {
+        if (it is CancellationException) throw it
+        throw it.toKoryHttpException(path)
+    }
+
+    fun streamGetBytes(
+        path: String,
+        chunkSize: Int = DOWNLOAD_BUFFER_SIZE,
+    ): Flow<ByteArray> = flow {
+        client.prepareGet(path) {
+            header(HttpHeaders.ContentType, "application/json; charset=utf-8")
+            timeout { requestTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS }
+        }.execute { response ->
+            if (!response.status.isSuccess()) {
+                throw KoryHttpException.HttpStatus(
+                    status = response.status.value,
+                    body = response.readRawBytes(),
+                    url = path,
+                )
+            }
+            val channel = response.bodyAsChannel()
+            val chunk = ByteArray(chunkSize)
+            while (true) {
+                val read = channel.readAvailable(chunk, 0, chunk.size)
+                if (read == -1) break
+                if (read == 0) continue
+                emit(chunk.copyOf(read))
+            }
+        }
+    }.catch { e ->
+        if (e is CancellationException) throw e
+        throw e.toKoryHttpException(path)
+    }
+
+    suspend fun download(
+        path: String,
+        sink: Sink,
+        onProgress: ((bytesWritten: Long, totalBytes: Long?) -> Unit)? = null,
+    ): Long {
+        var written = 0L
+        streamGet(path) { response ->
+            val buffer = ByteArray(DOWNLOAD_BUFFER_SIZE)
+            while (true) {
+                currentCoroutineContext().ensureActive()
+                val read = response.body.readAvailable(buffer, 0, buffer.size)
+                if (read == -1) break
+                if (read == 0) continue
+                sink.write(buffer, 0, read)
+                written += read
+                onProgress?.invoke(written, response.contentLength)
+            }
+        }
+        return written
+    }
 
     private suspend fun HttpResponse.toKoryHttpResponseOrThrow(): KoryHttpResponse {
         if (!status.isSuccess()) {
@@ -196,7 +373,6 @@ class KoryHttpClient private constructor(
                 }
                 defaultRequest {
                     url(config.baseUrl)
-                    header(HttpHeaders.ContentType, "application/json; charset=utf-8")
                     applyAuth(config.auth)
                     config.extraHeaders.forEach { (key, value) -> header(key, value) }
                 }
