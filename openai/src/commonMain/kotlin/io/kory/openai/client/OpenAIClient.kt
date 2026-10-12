@@ -71,13 +71,18 @@ import io.kory.openai.responses.dsl.openAIResponsesRequest
 import io.kory.openai.responses.dto.OpenAIResponsesRequest
 import io.kory.openai.responses.dto.OpenAIResponsesResponse
 import io.kory.openai.responses.extension.toOpenAIResponseException
+import io.kory.openai.responses.model.OpenAIResponseStatus
 import io.kory.openai.shared.serialization.json
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.channelFlow
@@ -95,6 +100,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlin.collections.map
 import kotlin.getOrElse
+import kotlin.time.Duration.Companion.seconds
 
 private class PartialToolCallAccumulator(
     val choiceIndex: Int,
@@ -203,11 +209,82 @@ class OpenAIClient(
         return chatCompletions(openAIChatCompletionRequest(model, block))
     }
 
-    suspend fun chatResponses(request: OpenAIResponsesRequest): OpenAIResponsesResponse = withContext(Dispatchers.Default) {
-        runCatchingCancelable {
-            val response = client.post(
+    suspend fun chatResponses(
+        request: OpenAIResponsesRequest,
+        onCanceled: ((cancelResult: OpenAIResponsesResponse?) -> Unit)? = null
+    ): OpenAIResponsesResponse = withContext(Dispatchers.IO) {
+        var responseId: String = ""
+        runCatching {
+            var response = client.post(
                 path = "responses",
                 json.encodeToString(request)
+            ).let { resp ->
+                json.decodeFromString<OpenAIResponsesResponse>(
+                    resp.body.decodeToString()
+                ).also {
+                    it.error?.let { error -> throw error.toOpenAIResponseException(resp.status)}
+                    responseId = it.id
+                }
+            }
+
+
+
+            if (request.background) {
+                while (response.status == OpenAIResponseStatus.QUEUED || response.status == OpenAIResponseStatus.IN_PROGRESS) {
+
+                    ensureActive()
+                    delay(2.seconds)
+                    response = retrieveResponse(response.id)
+                    responseId = response.id
+                    if (response.status == OpenAIResponseStatus.FAILED) {
+                        throw IllegalStateException("Background response generation failed: ${response.error}")
+                    }
+                }
+            }
+
+            response
+        }.getOrElse { th ->
+            if (th is CancellationException) {
+                if (request.background && responseId.isNotBlank()) {
+                    withContext(NonCancellable) {
+                        val response = runCatchingCancelable { cancelResponsesResponse(responseId) }.getOrNull()
+                        onCanceled?.invoke(response)
+                    }
+                }
+                throw th
+            }
+
+            throw when (th) {
+                is KoryHttpException.HttpStatus -> {
+                    if (th.body.isEmpty()) throw th
+                    val apiError = runCatching {
+                        json.decodeFromString<OpenAIResponsesResponse>(th.body.decodeToString()).error
+                    }.getOrNull()
+
+                    if (apiError != null) {
+                        throw apiError.toOpenAIResponseException(th.status)
+                    }
+                    throw th
+                }
+
+                else -> th
+            }
+        }
+    }
+
+    suspend fun chatResponses(model: String, block: OpenAIResponsesRequestBuilder.() -> Unit): OpenAIResponsesResponse =
+        chatResponses(openAIResponsesRequest(model, block))
+
+    suspend fun retrieveResponse(
+        responseId: String,
+        stream: Boolean = false
+    ): OpenAIResponsesResponse = withContext(Dispatchers.IO) {
+        runCatchingCancelable {
+            val response = client.get(
+                path = "responses/$responseId",
+                params = mapOf(
+                    "stream" to stream
+                )
             )
 
             val decodedJson = json.decodeFromString<OpenAIResponsesResponse>(
@@ -238,9 +315,41 @@ class OpenAIClient(
         }
     }
 
-    suspend fun chatResponses(model: String, block: OpenAIResponsesRequestBuilder.() -> Unit): OpenAIResponsesResponse =
-        chatResponses(openAIResponsesRequest(model, block))
+    /**
+     * Cancels an in-progress response from the OpenAI Responses API.
+     *
+     * @param responseId The ID of the response to cancel.
+     * @return The [OpenAIResponsesResponse] reflecting the canceled state.
+     * @throws io.kory.openai.shared.error.OpenAIResponseException if the API returns an error.
+     * @throws KoryHttpException if the HTTP request fails.
+     *
+     * @see OpenAIResponsesResponse
+     */
+    suspend fun cancelResponsesResponse(responseId: String): OpenAIResponsesResponse = withContext(Dispatchers.IO) {
+        runCatchingCancelable {
+            client.post("responses/$responseId/cancel", null).let { resp ->
+                json.decodeFromString<OpenAIResponsesResponse>(
+                    resp.body.decodeToString()
+                ).also { it.error?.let { error -> throw error.toOpenAIResponseException(resp.status)} }
+            }
+        }.getOrElse { th ->
+            throw when (th) {
+                is KoryHttpException.HttpStatus -> {
+                    if (th.body.isEmpty()) throw th
+                    val apiError = runCatching {
+                        json.decodeFromString<OpenAIResponsesResponse>(th.body.decodeToString()).error
+                    }.getOrNull()
 
+                    if (apiError != null) {
+                        throw apiError.toOpenAIResponseException(th.status)
+                    }
+                    throw th
+                }
+
+                else -> th
+            }
+        }
+    }
 
     /**
      * Sends a chat request to the OpenAI and returns a non-streaming response.
@@ -404,6 +513,7 @@ class OpenAIClient(
          return chatCompletionsStream(request.toOpenAIChatCompletionRequest())
              .map { it.toChatChunk() }
              .catch { th ->
+                 if (th is CancellationException) throw th
                  throw when (th) {
                      is OpenAIException -> th.toKoryProviderException()
                      else -> th

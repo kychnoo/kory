@@ -10,6 +10,8 @@ class OpenAIResponsesRequestBuilder {
     internal var model: String? = null
     private var selectedInput: OpenAIResponseInput? = null
 
+    var background: Boolean = false
+
     fun inputText(text: String) {
         selectedInput = OpenAIResponseInput.Text(text)
     }
@@ -35,7 +37,8 @@ class OpenAIResponsesRequestBuilder {
 
         return OpenAIResponsesRequest(
             model = sModel,
-            input = lastInput
+            input = lastInput,
+            background = background
         )
     }
 }

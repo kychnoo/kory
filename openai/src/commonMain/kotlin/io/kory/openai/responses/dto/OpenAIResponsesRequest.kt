@@ -7,4 +7,5 @@ import kotlinx.serialization.Serializable
 data class OpenAIResponsesRequest(
     val model: String,
     val input: OpenAIResponseInput,
+    val background: Boolean = false
 )

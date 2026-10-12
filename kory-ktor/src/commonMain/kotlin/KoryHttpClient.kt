@@ -81,10 +81,12 @@ class KoryHttpClient private constructor(
      * @throws KoryHttpException.Timeout if the request times out.
      * @throws KoryHttpException.Network if a network error occurs.
      */
-    suspend fun post(path: String, body: String): KoryHttpResponse = runCatching {
+    suspend fun post(path: String, body: String?): KoryHttpResponse = runCatching {
         client.post(path) {
             header(HttpHeaders.ContentType, "application/json; charset=utf-8")
-            setBody(body)
+            if (!body.isNullOrBlank()) {
+                setBody(body)
+            }
         }
     }.mapCatching { response ->
         response.toKoryHttpResponseOrThrow()
