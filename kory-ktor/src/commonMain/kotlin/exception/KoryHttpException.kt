@@ -1,5 +1,7 @@
 package io.kory.ktor.exception
 
+import io.kory.ktor.shared.serialization.JsonDecodable
+
 /**
  * Sealed exception hierarchy for Kory HTTP client errors.
  *
@@ -22,9 +24,9 @@ sealed class KoryHttpException(
      */
     class HttpStatus(
         val status: Int,
-        val body: ByteArray,
+        override val body: ByteArray,
         val url: String,
-    ) : KoryHttpException("HTTP $status from $url") {
+    ) : KoryHttpException("HTTP $status from $url"), JsonDecodable {
         fun decodeBody(): String = body.decodeToString()
     }
 

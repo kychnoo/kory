@@ -43,6 +43,7 @@ import io.kory.ktor.data.remote.config.KoryHttpClientConfig
 import io.kory.ktor.data.remote.model.file.KoryFilePart
 import io.kory.ktor.data.remote.model.formdata.KoryFormDataPart
 import io.kory.ktor.exception.KoryHttpException
+import io.kory.ktor.shared.serialization.decodeFromJson
 import io.kory.openai.completions.dsl.OpenAIChatCompletionRequestBuilder
 import io.kory.openai.completions.dsl.openAIChatCompletionRequest
 import io.kory.openai.completions.dto.OpenAIChatCompletionRequest
@@ -68,6 +69,7 @@ import io.kory.openai.internal.extension.file.toOpenAIUploadFileRequest
 import io.kory.openai.internal.extension.toModels
 import io.kory.openai.responses.dsl.OpenAIResponsesRequestBuilder
 import io.kory.openai.responses.dsl.openAIResponsesRequest
+import io.kory.openai.responses.dto.OpenAIResponsesDeleteResponse
 import io.kory.openai.responses.dto.OpenAIResponsesRequest
 import io.kory.openai.responses.dto.OpenAIResponsesResponse
 import io.kory.openai.responses.extension.toOpenAIResponseException
@@ -100,6 +102,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlin.collections.map
 import kotlin.getOrElse
+import kotlin.let
 import kotlin.time.Duration.Companion.seconds
 
 private class PartialToolCallAccumulator(
@@ -172,20 +175,16 @@ class OpenAIClient(
      */
     suspend fun chatCompletions(request: OpenAIChatCompletionRequest): OpenAIChatCompletionResponse = withContext(Dispatchers.Default) {
         runCatchingCancelable {
-            val response = client.post(
+            client.post(
                 "chat/completions",
                 json.encodeToString(request)
-            )
-
-            json.decodeFromString<OpenAIChatCompletionResponse>(
-                response.body.decodeToString()
-            )
+            ).decodeFromJson<OpenAIChatCompletionResponse>()
         }.getOrElse { th ->
             throw when (th) {
                 is KoryHttpException.HttpStatus -> {
                     if (th.body.isEmpty()) throw th
                     runCatching {
-                        json.decodeFromString<OpenAIErrorResponse>(th.body.decodeToString()).toException(th.status)
+                        th.decodeFromJson<OpenAIErrorResponse>().toException(th.status)
                     }.getOrDefault(th)
                 }
 
@@ -219,9 +218,7 @@ class OpenAIClient(
                 path = "responses",
                 json.encodeToString(request)
             ).let { resp ->
-                json.decodeFromString<OpenAIResponsesResponse>(
-                    resp.body.decodeToString()
-                ).also {
+                resp.decodeFromJson<OpenAIResponsesResponse>().also {
                     it.error?.let { error -> throw error.toOpenAIResponseException(resp.status)}
                     responseId = it.id
                 }
@@ -258,7 +255,7 @@ class OpenAIClient(
                 is KoryHttpException.HttpStatus -> {
                     if (th.body.isEmpty()) throw th
                     val apiError = runCatching {
-                        json.decodeFromString<OpenAIResponsesResponse>(th.body.decodeToString()).error
+                        th.decodeFromJson<OpenAIResponsesResponse>().error
                     }.getOrNull()
 
                     if (apiError != null) {
@@ -287,32 +284,32 @@ class OpenAIClient(
                 )
             )
 
-            val decodedJson = json.decodeFromString<OpenAIResponsesResponse>(
-                response.body.decodeToString()
-            )
-
-            decodedJson.error?.let { error ->
-                throw error.toOpenAIResponseException(response.status)
+            response.decodeFromJson<OpenAIResponsesResponse>().apply {
+                error?.let { error ->
+                    throw error.toOpenAIResponseException(response.status)
+                }
             }
-
-            decodedJson
         }.getOrElse { th ->
             throw when (th) {
                 is KoryHttpException.HttpStatus -> {
                     if (th.body.isEmpty()) throw th
-                    val apiError = runCatching {
-                        json.decodeFromString<OpenAIResponsesResponse>(th.body.decodeToString()).error
-                    }.getOrNull()
-
-                    if (apiError != null) {
-                        throw apiError.toOpenAIResponseException(th.status)
+                    runCatching {
+                        th.decodeFromJson<OpenAIResponsesResponse>().error
+                    }.getOrNull()?.let {
+                        throw it.toOpenAIResponseException(th.status)
                     }
-                    throw th
+                    th
                 }
 
                 else -> th
             }
         }
+    }
+
+    suspend fun deleteResponse(responseId: String): OpenAIResponsesDeleteResponse = withContext(Dispatchers.IO) {
+        runCatchingCancelable {
+            client.delete("responses/$responseId").decodeFromJson<OpenAIResponsesDeleteResponse>()
+        }.getOrThrow()
     }
 
     /**
@@ -328,22 +325,20 @@ class OpenAIClient(
     suspend fun cancelResponsesResponse(responseId: String): OpenAIResponsesResponse = withContext(Dispatchers.IO) {
         runCatchingCancelable {
             client.post("responses/$responseId/cancel", null).let { resp ->
-                json.decodeFromString<OpenAIResponsesResponse>(
-                    resp.body.decodeToString()
-                ).also { it.error?.let { error -> throw error.toOpenAIResponseException(resp.status)} }
+                resp.decodeFromJson<OpenAIResponsesResponse>()
+                    .also { it.error?.let { error -> throw error.toOpenAIResponseException(resp.status)} }
             }
         }.getOrElse { th ->
             throw when (th) {
                 is KoryHttpException.HttpStatus -> {
                     if (th.body.isEmpty()) throw th
-                    val apiError = runCatching {
-                        json.decodeFromString<OpenAIResponsesResponse>(th.body.decodeToString()).error
-                    }.getOrNull()
-
-                    if (apiError != null) {
-                        throw apiError.toOpenAIResponseException(th.status)
+                    runCatching {
+                        th.decodeFromJson<OpenAIResponsesResponse>().error
+                    }.getOrNull()?.let { error ->
+                        throw error.toOpenAIResponseException(th.status)
                     }
-                    throw th
+
+                    th
                 }
 
                 else -> th
@@ -441,7 +436,7 @@ class OpenAIClient(
                 is KoryHttpException.HttpStatus -> {
                     if (th.body.isEmpty()) throw th
                     runCatching {
-                        json.decodeFromString<OpenAIErrorResponse>(th.body.decodeToString()).toException(th.status)
+                        th.decodeFromJson<OpenAIErrorResponse>().toException(th.status)
                     }.getOrDefault(th)
                 }
                 else -> th
@@ -478,7 +473,7 @@ class OpenAIClient(
             val chunk = json.decodeFromString<OpenAIChatCompletionChunk>(data)
             emit(chunk)
         }
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(Dispatchers.IO)
 
     /**
      * Streams raw OpenAI chat completion chunks using the request DSL.
@@ -565,12 +560,8 @@ class OpenAIClient(
      * @throws KoryHttpException
      * if the API returns a non-2xx status.
      */
-    suspend fun listOpenAIModels(): OpenAIModelListResponse {
-        val response = client.get("models")
-
-        return json.decodeFromString<OpenAIModelListResponse>(
-            response.body.decodeToString()
-        )
+    suspend fun listOpenAIModels(): OpenAIModelListResponse = withContext(Dispatchers.IO) {
+        client.get("models").decodeFromJson<OpenAIModelListResponse>()
     }
 
     /**
@@ -916,7 +907,7 @@ class OpenAIClient(
                 emit(chunk.copy(choices = chunk.choices.map { it.copy(index = choiceIndex) }))
             }
 
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(Dispatchers.IO)
 
     /**
      * Sends a chat request with tool support and returns a streaming response using full DSL configuration.
@@ -976,7 +967,7 @@ class OpenAIClient(
         order: OpenAIOrder? = null,
         purpose: OpenAIPurpose? = null
     ): OpenAIFileListResponse = withContext(Dispatchers.IO) {
-        val response = client.get(
+        client.get(
             path = "files",
             params = mapOf(
                 "after" to after,
@@ -984,9 +975,7 @@ class OpenAIClient(
                 "order" to order?.value,
                 "purpose" to purpose?.value
             )
-        )
-
-        json.decodeFromString(response.body.decodeToString())
+        ).decodeFromJson()
     }
 
     /**
@@ -1016,7 +1005,7 @@ class OpenAIClient(
             KoryFormDataPart.Text("purpose", request.purpose.name)
         )
 
-        val response = client.postMultipart(
+        client.postMultipart(
             path = "files",
             parts = parts,
             onProgress = onProgress?.let { listener ->
@@ -1024,9 +1013,7 @@ class OpenAIClient(
                     listener.onProgress(SingleFileProgress((progressValue)))
                 }
             }
-        )
-
-        json.decodeFromString(response.body.decodeToString())
+        ).decodeFromJson()
     }
 
     /**
@@ -1165,9 +1152,7 @@ class OpenAIClient(
      * @sample io.kory.openai.samples.client.getFileFromOpenAI
      */
     suspend fun retrieveOpenAIFile(fileId: String): OpenAIFileObject = withContext(Dispatchers.IO) {
-        val response = client.get("files/$fileId")
-
-        json.decodeFromString(response.body.decodeToString())
+        client.get("files/$fileId").decodeFromJson()
     }
 
     /**
@@ -1180,9 +1165,7 @@ class OpenAIClient(
      * @sample io.kory.openai.samples.client.deleteFileFromOpenAI
      */
     suspend fun deleteOpenAIFile(fileId: String) : OpenAIFileDeleteResponse {
-        val response = client.delete("files/$fileId")
-
-        return json.decodeFromString(response.body.decodeToString())
+        return client.delete("files/$fileId").decodeFromJson()
     }
 
     suspend fun deleteOpenAIFiles(
