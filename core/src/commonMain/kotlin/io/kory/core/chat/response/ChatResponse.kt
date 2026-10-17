@@ -28,7 +28,7 @@ data class ChatResponse(
     val output: List<Content.Response>
         get() = choices.firstOrNull()?.contents.orEmpty()
 
-    val text: String
+    val outputText: String
         get() = output.filterIsInstance<Content.Text>().joinToString("") { it.text }
 
     val toolCalls: List<Content.ToolCall>

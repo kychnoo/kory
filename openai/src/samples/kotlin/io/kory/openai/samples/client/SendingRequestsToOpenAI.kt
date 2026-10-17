@@ -5,10 +5,17 @@ import io.kory.core.chat.reasoning.ReasoningConfig
 import io.kory.core.chat.request.ChatRequest
 import io.kory.core.chat.response.ChatResponse
 import io.kory.core.dsl.chat.koryChat
+import io.kory.core.message.Role
 import io.kory.core.message.content.Content
 import io.kory.core.tool.KoryTool
 import io.kory.core.tool.annotation.ToolParam
 import io.kory.openai.client.OpenAIClient
+import io.kory.openai.shared.param.OpenAIDetail
+import io.kory.openai.shared.param.OpenAIMetadata
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 
@@ -388,4 +395,25 @@ suspend fun sendToChatStreamWithToolsRequestBuilder(client: OpenAIClient, modelN
             }
         }
     }
+}
+
+suspend fun chatResponsesRequestCreation(client: OpenAIClient) {
+    val response = client.chatResponses("gpt-6-astra") {
+        inputText("Write a short bedtime story about a unicorn.")
+    }
+
+    println(response.outputText)
+}
+
+suspend fun chatResponsesFileRequestCreation(client: OpenAIClient) {
+    val response = client.chatResponses("gpt-6-astra") {
+        inputItems {
+            easyInputMessage(Role.User) {
+                text("what is in this file?")
+                fileUrl("https://www.berkshirehathaway.com/letters/2024ltr.pdf", detail = OpenAIDetail.Auto)
+            }
+        }
+    }
+
+    println(response.outputText)
 }

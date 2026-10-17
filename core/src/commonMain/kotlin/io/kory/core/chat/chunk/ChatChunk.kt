@@ -2,6 +2,7 @@ package io.kory.core.chat.chunk
 
 import io.kory.core.chat.choice.ChatChunkChoice
 import io.kory.core.contract.streaming.AIChunk
+import io.kory.core.message.content.Content
 import kotlinx.serialization.Serializable
 
 /**
@@ -19,4 +20,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ChatChunk(
     val choices: List<ChatChunkChoice>,
-) : AIChunk
+) : AIChunk {
+    val text: String get() {
+        val firstContent = choices.firstOrNull()?.content ?: return ""
+        if (firstContent is Content.Text) {
+            return firstContent.text
+        }
+
+        return ""
+    }
+}
