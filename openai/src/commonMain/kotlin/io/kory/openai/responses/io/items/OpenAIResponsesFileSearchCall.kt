@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 @SerialName("file_search_call")
-data class FileSearchCall(
+data class OpenAIResponsesFileSearchCall(
     val id: String,
     val queries: List<String>,
     val status: OpenAIFileSearchStatus,

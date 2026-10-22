@@ -6,7 +6,7 @@ import io.kory.openai.completions.dsl.OpenAIChatCompletionRequestBuilder
 import io.kory.openai.completions.dto.OpenAIChatCompletionRequest
 import io.kory.openai.completions.dto.OpenAIChatCompletionResponse
 import io.kory.openai.responses.dsl.OpenAIResponsesRequestBuilder
-import io.kory.openai.responses.dto.OpenAIResponsesRequest
+import io.kory.openai.responses.data.OpenAIResponsesRequest
 import io.kory.openai.responses.dto.OpenAIResponsesResponse
 
 suspend fun OpenAIClient.chatCompletionsCatching(request: OpenAIChatCompletionRequest): Result<OpenAIChatCompletionResponse> =

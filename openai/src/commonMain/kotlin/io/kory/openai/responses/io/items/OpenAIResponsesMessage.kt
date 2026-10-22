@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 @SerialName("message")
-data class Message(
+data class OpenAIResponsesMessage(
     val role: Role,
     val content: OpenAIResponseContent
 ) : OpenAIResponseInputItem

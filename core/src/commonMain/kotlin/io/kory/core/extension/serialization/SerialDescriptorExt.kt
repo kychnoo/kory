@@ -1,7 +1,12 @@
 package io.kory.core.extension.serialization
 
 import io.kory.core.tool.annotation.ToolParam
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.descriptors.PolymorphicKind
+import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.SerialKind
+import kotlinx.serialization.descriptors.StructureKind
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
@@ -21,38 +26,56 @@ import kotlinx.serialization.json.put
  * @return A JSON Schema object with `"type": "object"`, `"properties"`, and optionally `"required"`.
  *
  */
-fun SerialDescriptor.toJsonSchema(): JsonObject {
-    val properties = buildJsonObject {
-        for (i in 0 until elementsCount) {
-            val fieldName = getElementName(i)
-            val fieldDescriptor = getElementDescriptor(i)
+@OptIn(ExperimentalSerializationApi::class)
+fun SerialDescriptor.toJsonSchema(strict: Boolean = false): JsonObject = buildJsonObject {
+    when (val kind = kind) {
+        is PrimitiveKind -> put("type", kind.toJsonType())
 
-            val paramAnnotation = getElementAnnotations(i)
-                .filterIsInstance<ToolParam>()
-                .firstOrNull()
+        is SerialKind.ENUM -> {
+            put("type", "string")
+            put("enum", buildJsonArray { repeat(elementsCount) { add(getElementName(it)) } })
+        }
 
-            put(fieldName, buildJsonObject {
-                put("type", fieldDescriptor.kind.toJsonType())
-                paramAnnotation?.description?.let { description ->
-                    if (description.isNotBlank()) put("description", description)
+        StructureKind.LIST -> {
+            put("type", "array")
+            put("items", getElementDescriptor(0).toJsonSchema(strict))
+        }
+
+        StructureKind.MAP -> {
+            put("type", "object")
+            put("additionalProperties", getElementDescriptor(1).toJsonSchema(strict))
+        }
+
+        StructureKind.CLASS, StructureKind.OBJECT -> {
+            put("type", "object")
+            put("properties", buildJsonObject {
+                for (i in 0 until elementsCount) {
+                    val fieldSchema = getElementDescriptor(i).toJsonSchema(strict)
+                    val description = getElementAnnotations(i)
+                        .filterIsInstance<ToolParam>().firstOrNull()?.description
+                        ?.takeIf { it.isNotBlank() }
+
+                    put(getElementName(i), buildJsonObject {
+                        if (strict && isElementOptional(i)) {
+                            put("anyOf", buildJsonArray {
+                                add(fieldSchema)
+                                add(buildJsonObject { put("type", "null") })
+                            })
+                        } else {
+                            fieldSchema.forEach { (k, v) -> put(k, v) }
+                        }
+                        description?.let { put("description", it) }
+                    })
                 }
             })
-        }
-    }
 
-    val requiredFields = buildJsonArray {
-        for (i in 0 until elementsCount) {
-            if (!isElementOptional(i)) {
-                add(getElementName(i))
+            val required = buildJsonArray {
+                for (i in 0 until elementsCount) if (strict || !isElementOptional(i)) add(getElementName(i))
             }
+            if (strict || required.isNotEmpty()) put("required", required)
+            if (strict) put("additionalProperties", false)
         }
-    }
 
-    return buildJsonObject {
-        put("type", "object")
-        put("properties", properties)
-        if (requiredFields.isNotEmpty()) {
-            put("required", requiredFields)
-        }
+        is PolymorphicKind, is SerialKind.CONTEXTUAL -> { }
     }
 }

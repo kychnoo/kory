@@ -14,7 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-internal class MessageExtOpenAITest {
+internal class OpenAIResponsesMessageExtOpenAITest {
 
     @Test
     fun testToOpenAIMessage() {

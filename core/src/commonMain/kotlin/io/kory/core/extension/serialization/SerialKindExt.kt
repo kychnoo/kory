@@ -19,13 +19,10 @@ import kotlinx.serialization.descriptors.StructureKind
  *
  * @return The JSON Schema type string.
  */
-fun SerialKind.toJsonType(): String = when (this) {
+fun PrimitiveKind.toJsonType(): String = when (this) {
     PrimitiveKind.BOOLEAN -> "boolean"
-    PrimitiveKind.CHAR -> "char"
-    PrimitiveKind.DOUBLE, PrimitiveKind.FLOAT -> "number"
-    PrimitiveKind.INT, PrimitiveKind.LONG, PrimitiveKind.SHORT, PrimitiveKind.BYTE  -> "integer"
+    PrimitiveKind.CHAR -> "string"
+    PrimitiveKind.BYTE, PrimitiveKind.SHORT, PrimitiveKind.INT, PrimitiveKind.LONG -> "integer"
+    PrimitiveKind.FLOAT, PrimitiveKind.DOUBLE -> "number"
     PrimitiveKind.STRING -> "string"
-    StructureKind.CLASS, StructureKind.MAP, StructureKind.OBJECT -> "object"
-    StructureKind.LIST -> "array"
-    else -> "string"
 }

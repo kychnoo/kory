@@ -355,7 +355,7 @@ class KoryHttpClient private constructor(
         fun create(config: KoryHttpClientConfig): KoryHttpClient {
             val factory = config.engineFactory ?: discoverKoryHttpEngineFactory()
             ?: error(
-                "No Kory HTTP engine found. On JVM: add `kory-ktor-cio` dependency. " +
+                "No Kory HTTP engine found. On JVM: add `kory-ktor-cio` or `kory-ktor-okhttp` dependency. " +
                 "On Native: the engine should be registered automatically - " +
                 "if not, call KoryEngineRegistry.register(...) before creating the client " +
                 "or pass `engineFactory` explicitly in KoryHttpClientConfig."

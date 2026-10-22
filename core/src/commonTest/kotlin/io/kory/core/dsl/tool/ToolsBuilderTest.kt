@@ -13,6 +13,7 @@ internal class ToolsBuilderTest {
 
     private val dummyTool = object : KoryTool<DummyArgs, String>("test_tool", "A test tool") {
         override val argsSerializer = serializer<DummyArgs>()
+        override val resultSerializer = serializer<String>()
         override suspend fun execute(args: DummyArgs): String = args.value
     }
 

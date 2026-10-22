@@ -5,7 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-internal class OpenAIMessageTest {
+internal class OpenAIOpenAIResponsesMessageTest {
 
     @Test
     fun testEffectiveReasoningFromReasoningContent() {

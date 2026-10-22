@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 @SerialName("message")
-data class EasyInputMessage(
+data class OpenAIResponsesEasyInputMessage(
     val role: Role,
     val content: OpenAIResponseContent,
     val phase: OpenAIPhase? = null,

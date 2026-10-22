@@ -9,7 +9,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 @SerialName("message")
-data class ResponseOutputMessage(
+data class OpenAIResponsesOutputMessage(
     val id: String,
     val content: List<OpenAIResponseOutputContent.OutputMessageContent>,
     val role: Role = Role.Assistant,

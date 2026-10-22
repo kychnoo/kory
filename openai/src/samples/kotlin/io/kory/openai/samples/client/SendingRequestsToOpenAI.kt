@@ -10,14 +10,12 @@ import io.kory.core.message.content.Content
 import io.kory.core.tool.KoryTool
 import io.kory.core.tool.annotation.ToolParam
 import io.kory.openai.client.OpenAIClient
+import io.kory.openai.responses.io.tool.dsl.openAIFunctionTool
 import io.kory.openai.shared.param.OpenAIDetail
-import io.kory.openai.shared.param.OpenAIMetadata
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
-import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
+import kotlin.coroutines.cancellation.CancellationException
 
 class TestWeatherTool : KoryTool<TestWeatherTool.Args, String>(
     name = "get_weather", // Name for tool.
@@ -30,6 +28,7 @@ class TestWeatherTool : KoryTool<TestWeatherTool.Args, String>(
     )
 
     override val argsSerializer: KSerializer<Args> = Args.serializer() // Use serializer from your Args data class or add your custom KSerializer.
+    override val resultSerializer: KSerializer<String> = String.serializer()
 
     override suspend fun execute(args: Args): String { // Execute tool code here.
         return "Current weather in ${args.location} is sunny, 27°C"
@@ -49,30 +48,15 @@ suspend fun sendToChatWithChatRequest(client: OpenAIClient, modelName: String) {
     )
 
     // Send request to OpenAI API.
-    val response: ChatResponse? = try {
+    val response: ChatResponse = runCatching {
         client.chat(request)
-    } catch (e: Exception) {
-        println("Error: ${e.message}")
-        null
+    }.getOrElse { th ->
+        if (th is CancellationException) throw th
+        th.printStackTrace()
+        return
     }
 
-    response?.let { response ->
-        // Iterate all choices.
-        for (choice in response.choices) {
-            // Iterate through all the content from choice
-            for (content in choice.contents) {
-                // Print information about content.
-                when (content) { // Content is Content.Response.
-                    is Content.Parts -> {
-                        println("Parts: ${content.parts.joinToString(separator = "\n")}")
-                    }
-                    is Content.Reasoning -> println("Reasoning: ${content.value}")
-                    is Content.Text -> println("Text: ${content.text}")
-                    is Content.ToolCall -> println("Tool call: ${content.name} with ${content.argumentsJson}")
-                }
-            }
-        }
-    }
+    println(response.outputText)
 }
 
 suspend fun sendToChatWithChatDsl(client: OpenAIClient, modelName: String) {
@@ -413,6 +397,35 @@ suspend fun chatResponsesFileRequestCreation(client: OpenAIClient) {
                 fileUrl("https://www.berkshirehathaway.com/letters/2024ltr.pdf", detail = OpenAIDetail.Auto)
             }
         }
+    }
+
+    println(response.outputText)
+}
+
+suspend fun chatResponsesToolRequestCreation(client: OpenAIClient) {
+    @Serializable
+    data class TestWeatherToolArgs(
+        @ToolParam(description = "Name of the city for which you want the weather forecast")
+        val city: String,
+    )
+
+    val testWeatherTool = openAIFunctionTool<TestWeatherToolArgs, String>(
+        name = "get_weather",
+        description = "Get weather for the city",
+    ) { args ->
+        "Current weather in ${args.city} is ${listOf("Sunny", "Rainy").random()}, ${(-20..20).random()} Celsius"
+    }
+
+    val response = client.chatResponses("gpt-6-astra") {
+        registerTools {
+            tool(testWeatherTool)
+        }
+
+        toolExecutionConfig { toolName ->
+            println("Executing $toolName")
+        }
+
+        inputText("Where is weather like in London?")
     }
 
     println(response.outputText)

@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 @SerialName("reasoning")
-data class Reasoning(
+data class OpenAIResponsesReasoning(
     val id: String,
     val summary: List<OpenAIResponseOutputContent.ReasoningContent> = emptyList(),
     val content: List<OpenAIResponseOutputContent.ReasoningContent> = emptyList(),

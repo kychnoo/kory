@@ -70,9 +70,12 @@ import io.kory.openai.internal.extension.toModels
 import io.kory.openai.responses.dsl.OpenAIResponsesRequestBuilder
 import io.kory.openai.responses.dsl.openAIResponsesRequest
 import io.kory.openai.responses.dto.OpenAIResponsesDeleteResponse
-import io.kory.openai.responses.dto.OpenAIResponsesRequest
+import io.kory.openai.responses.data.OpenAIResponsesRequest
 import io.kory.openai.responses.dto.OpenAIResponsesResponse
 import io.kory.openai.responses.extension.toOpenAIResponseException
+import io.kory.openai.responses.io.items.OpenAIResponsesFunctionCall
+import io.kory.openai.responses.io.items.function.OpenAIFunctionCallOutputOutput
+import io.kory.openai.responses.io.tool.OpenAIFunctionTool
 import io.kory.openai.responses.model.OpenAIResponseStatus
 import io.kory.openai.shared.serialization.json
 import kotlinx.coroutines.CancellationException
@@ -216,15 +219,13 @@ class OpenAIClient(
         runCatching {
             var response = client.post(
                 path = "responses",
-                json.encodeToString(request)
+                json.encodeToString(request.toDto())
             ).let { resp ->
                 resp.decodeFromJson<OpenAIResponsesResponse>().also {
                     it.error?.let { error -> throw error.toOpenAIResponseException(resp.status)}
                     responseId = it.id
                 }
             }
-
-
 
             if (request.background) {
                 while (response.status == OpenAIResponseStatus.QUEUED || response.status == OpenAIResponseStatus.IN_PROGRESS) {
@@ -236,6 +237,53 @@ class OpenAIClient(
                     if (response.status == OpenAIResponseStatus.FAILED) {
                         throw IllegalStateException("Background response generation failed: ${response.error}")
                     }
+                }
+            }
+
+            if (request.toolExecutionConfig.autoExecute) {
+                val semaphore = Semaphore(request.toolExecutionConfig.maxConcurrency)
+                val toolMap = request.tools.filterIsInstance<OpenAIFunctionTool<*, *>>().associateBy { it.name }
+
+                val calls = response.output.filterIsInstance<OpenAIResponsesFunctionCall>()
+                if (calls.isNotEmpty()) {
+                    val newRequest = request.addItems(response)
+                    val results = coroutineScope {
+                        calls.map { call ->
+                            async(request.toolExecutionConfig.executionDispatcher) {
+                                semaphore.withPermit {
+                                    runCatchingCancelable {
+                                        val tool = toolMap[call.name] ?: throw ToolExecutionException(
+                                            toolName = call.name,
+                                            argumentsJson = call.arguments,
+                                            message = "Tool '${call.name}' is not registered.",
+                                        )
+
+                                        request.toolExecutionConfig.onToolCall?.onToolCall(call.name)
+
+                                        val result = tool.executeRaw(call.arguments)
+                                        call.toFunctionCallOutput(
+                                            OpenAIFunctionCallOutputOutput.StringOutput(result)
+                                        )
+                                    }.getOrElse { th ->
+                                        if (request.toolExecutionConfig.returnErrorsToAI) {
+                                            call.toFunctionCallOutput(
+                                                OpenAIFunctionCallOutputOutput.StringOutput("Error executing tool ${call.name}: ${th.message ?: th::class.simpleName ?: "unknown error"}")
+                                            )
+                                        } else {
+                                            throw ToolExecutionException(
+                                                toolName = call.name,
+                                                argumentsJson = call.arguments,
+                                                message = "Error executing tool ${call.name}: ${th.message ?: th::class.simpleName ?: "unknown error"}",
+                                                cause = th
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }.awaitAll()
+
+                    response = chatResponses(newRequest.addInputItems(results))
                 }
             }
 
@@ -269,6 +317,11 @@ class OpenAIClient(
         }
     }
 
+    /**
+     * @sample io.kory.openai.samples.client.chatResponsesRequestCreation
+     * @sample io.kory.openai.samples.client.chatResponsesFileRequestCreation
+     * @sample io.kory.openai.samples.client.chatResponsesToolRequestCreation
+     */
     suspend fun chatResponses(model: String, block: OpenAIResponsesRequestBuilder.() -> Unit): OpenAIResponsesResponse =
         chatResponses(openAIResponsesRequest(model, block))
 

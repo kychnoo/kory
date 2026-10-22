@@ -2,11 +2,13 @@ package io.kory.core.samples.tools
 
 import io.kory.core.dsl.chat.koryChat
 import io.kory.core.dsl.chat.request.koryChatRequest
+import io.kory.core.dsl.tool.koryTool
 import io.kory.core.dsl.tool.koryTools
 import io.kory.core.tool.KoryTool
 import io.kory.core.tool.annotation.ToolParam
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 class TestWeatherTool : KoryTool<TestWeatherTool.Args, String>(
     name = "get_weather", // Name for tool.
@@ -19,6 +21,7 @@ class TestWeatherTool : KoryTool<TestWeatherTool.Args, String>(
     )
 
     override val argsSerializer: KSerializer<Args> = Args.serializer() // Use serializer from your Args data class or add your custom KSerializer.
+    override val resultSerializer: KSerializer<String> = String.serializer() //  Use serializer from Result data class or add your custom KSerializer.
 
     override suspend fun execute(args: Args): String { // Execute tool code here.
         return "Current weather in ${args.location} is sunny, 27°C"
@@ -73,4 +76,43 @@ fun useTestWeatherToolInKoryTools() {
             user("Hello, what's the weather like in London?")
         }
     }
+}
+
+fun toolCreationWithDSL() {
+    @Serializable // @Serializable from kotlinx.serialization for serialization custom data class.
+    data class TestWeatherToolArgs(
+        @ToolParam(description = "Location for which weather information is needed") // Description about `location` field for AI.
+        val location: String
+    )
+
+    val testWeatherTool = koryTool<TestWeatherToolArgs, String>(
+        name = "get_weather", // Name for tool.
+        description = "Get weather for the selected location" // Description for tool.
+    ) { args ->
+        "Current weather in ${args.location} is sunny, 27°C"
+    }
+}
+
+fun toolCreationWithKoryTool() {
+    @Serializable // @Serializable from kotlinx.serialization for serialization custom data class.
+    data class TestWeatherToolArgs(
+        @ToolParam(description = "Location for which weather information is needed") // Description about `location` field for AI.
+        val location: String
+    )
+
+    class TestWeatherTool : KoryTool<TestWeatherToolArgs, String>(
+        name = "get_weather", // Name for tool.
+        description = "Get weather for the selected location" // Description for tool.
+    ) {
+
+
+        override val argsSerializer: KSerializer<TestWeatherToolArgs> = TestWeatherToolArgs.serializer() // Use serializer from your Args data class or add your custom KSerializer.
+        override val resultSerializer: KSerializer<String> = String.serializer() //  Use serializer from Result data class or add your custom KSerializer.
+
+        override suspend fun execute(args: TestWeatherToolArgs): String { // Execute tool code here.
+            return "Current weather in ${args.location} is sunny, 27°C"
+        }
+    }
+
+    // Use TestWeatherTool...
 }
