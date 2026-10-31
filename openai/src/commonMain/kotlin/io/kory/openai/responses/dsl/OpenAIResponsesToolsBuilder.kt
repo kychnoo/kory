@@ -1,10 +1,15 @@
 package io.kory.openai.responses.dsl
 
+import io.kory.core.mcp.tool.MCPTool
 import io.kory.core.tool.KoryTool
 import io.kory.openai.completions.dsl.OpenAIRequestDsl
+import io.kory.openai.responses.extension.toOpenAIMcpTool
 import io.kory.openai.responses.extension.toOpenAIResponsesFunctionTool
+import io.kory.openai.responses.io.tool.OpenAIMcpTool
 import io.kory.openai.responses.io.tool.OpenAIResponsesTool
 import io.kory.openai.responses.model.tool.OpenAIEToolOptions
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 import kotlin.jvm.JvmName
 
 @OpenAIRequestDsl
@@ -53,6 +58,42 @@ class OpenAIResponsesToolsBuilder {
                 toolsList.add(tool)
             }
         }
+    }
+
+    fun mcp(tool: OpenAIMcpTool) {
+        if (tool !in toolsList) {
+            toolsList.add(tool)
+        }
+    }
+
+    fun mcp(
+        tool: MCPTool,
+        requireApproval: JsonElement? = JsonPrimitive("never"),
+        serverDescription: String? = null,
+        authorization: String? = null
+    ) {
+        mcp(tool.toOpenAIMcpTool(
+            requireApproval = requireApproval,
+            serverDescription = serverDescription,
+            authorization = authorization
+        ))
+    }
+
+    @JvmName("OpenAIMCPTools")
+    fun mcps(tools: Collection<OpenAIMcpTool>) {
+        tools(tools)
+    }
+
+    fun mcps(vararg tools: OpenAIResponsesTool<*>) {
+        tools(tools.toList())
+    }
+
+    fun mcps(tools: Collection<MCPTool>) {
+        tools(tools.map { it.toOpenAIMcpTool() })
+    }
+
+    fun mcps(vararg tools: MCPTool) {
+        mcps(tools.toList())
     }
 
     internal fun build(): List<OpenAIResponsesTool<*>> = toolsList

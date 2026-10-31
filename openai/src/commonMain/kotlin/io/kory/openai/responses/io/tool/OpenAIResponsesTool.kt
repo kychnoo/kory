@@ -4,6 +4,9 @@ import io.kory.core.extension.serialization.toJsonSchema
 import io.kory.core.tool.BaseTool
 import io.kory.core.utils.mapper.DtoMapper
 import io.kory.openai.responses.model.OpenAIAllowedCallers
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /**
@@ -47,5 +50,25 @@ abstract class OpenAIFunctionTool<ARGS, R>(
         async = async,
         deferLoading = deferLoading,
         outputSchema = outputSchema
+    )
+}
+
+data class OpenAIMcpTool(
+    val serverLabel: String,
+    val serverUrl: String,
+    val serverDescription: String? = null,
+    val headers: Map<String, String>? = null,
+    val allowedTools: List<String>? = null,
+    val requireApproval: JsonElement? = null,
+    val authorization: String? = null,
+) : OpenAIResponsesTool<OpenAIResponsesToolDto.McpTool> {
+    override fun toDto(): OpenAIResponsesToolDto.McpTool = OpenAIResponsesToolDto.McpTool(
+        serverLabel = serverLabel,
+        serverUrl = serverUrl,
+        serverDescription = serverDescription,
+        headers = headers,
+        allowedTools = allowedTools?.toList(),
+        requireApproval = requireApproval,
+        authorization = authorization,
     )
 }

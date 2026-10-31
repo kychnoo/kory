@@ -2,6 +2,7 @@ package io.kory.openai.internal.extension.chat
 
 import io.kory.core.chat.request.ChatRequest
 import io.kory.core.extension.serialization.toJsonSchema
+import io.kory.core.mcp.extension.getAllAsKoryTool
 import io.kory.openai.completions.dto.OpenAIChatCompletionRequest
 import io.kory.openai.internal.extension.toOpenAIMessageParamList
 import io.kory.openai.internal.extension.toOpenAIReasoningEffort
@@ -18,14 +19,14 @@ import io.kory.openai.completions.tool.OpenAiChatCompletionFunctionTool
  *
  * @return A fully-formed [OpenAIChatCompletionRequest] ready for the API.
  */
-fun ChatRequest.toOpenAIChatCompletionRequest(): OpenAIChatCompletionRequest = OpenAIChatCompletionRequest(
+suspend fun ChatRequest.toOpenAIChatCompletionRequest(): OpenAIChatCompletionRequest = OpenAIChatCompletionRequest(
     model = this.chat.model,
     messages = this.chat.messages.toOpenAIMessageParamList(),
     maxCompletionTokens = maxTokens,
     n = this.choicesCount?.coerceIn(1, 128),
     temperature = this.temperature?.coerceIn(0.0, 2.0),
     topP = this.topP?.coerceIn(0.0, 1.0),
-    tools = this.tools.takeIf { it.isNotEmpty() }?.map { tool ->
+    tools = this.tools.takeIf { it.isNotEmpty() }?.getAllAsKoryTool()?.map { tool ->
         OpenAiChatCompletionFunctionTool(
             type = "function",
             function = OpenAIFunctionDefinition(

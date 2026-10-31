@@ -25,6 +25,8 @@ data class ChatResponse(
     val choices: List<ChatChoice>,
     val usage: TokensUsage? = null
 ) {
+    val firstChoice get() = choices.first()
+
     val output: List<Content.Response>
         get() = choices.firstOrNull()?.contents.orEmpty()
 

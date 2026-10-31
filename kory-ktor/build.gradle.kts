@@ -40,6 +40,8 @@ kotlin {
 
             implementation(libs.kotlinxSerialization)
             implementation(libs.kotlinxCoroutines)
+
+            implementation(project(":core"))
         }
 
         getByName("jvmSharedMain")

@@ -18,6 +18,7 @@ import io.kory.core.dsl.files.UploadFileRequestBuilder
 import io.kory.core.dsl.files.UploadFilesRequestBuilder
 import io.kory.core.dsl.files.uploadFileRequest
 import io.kory.core.dsl.files.uploadFilesRequest
+import io.kory.core.dsl.tool.ToolsBuilder
 import io.kory.core.exception.files.FileToDeleteNotSelectedException
 import io.kory.core.exception.files.upload.FileToUploadNotSelectedException
 import io.kory.core.exception.tools.ToolExecutionException
@@ -31,10 +32,12 @@ import io.kory.core.files.api.ApiFilesList
 import io.kory.core.files.progress.MultiFileProgress
 import io.kory.core.files.progress.SingleFileProgress
 import io.kory.core.files.progress.UploadFileProgressListener
+import io.kory.core.mcp.extension.getAllAsKoryTool
 import io.kory.core.message.Message
 import io.kory.core.message.Role
 import io.kory.core.message.content.Content
 import io.kory.core.model.Model
+import io.kory.core.tool.ChatTool
 import io.kory.core.tool.KoryTool
 import io.kory.core.tool.capable.ToolCapable
 import io.kory.ktor.KoryHttpClient
@@ -557,16 +560,18 @@ class OpenAIClient(
      * @see ChatChunk
      * @sample io.kory.openai.samples.client.sendToChatStreamWithRequest
      */
-    override fun chatStream(request: ChatRequest): Flow<ChatChunk> {
-         return chatCompletionsStream(request.toOpenAIChatCompletionRequest())
-             .map { it.toChatChunk() }
-             .catch { th ->
-                 if (th is CancellationException) throw th
-                 throw when (th) {
-                     is OpenAIException -> th.toKoryProviderException()
-                     else -> th
-                 }
-             }
+    override fun chatStream(request: ChatRequest): Flow<ChatChunk> = flow {
+        chatCompletionsStream(request.toOpenAIChatCompletionRequest())
+            .map { it.toChatChunk() }
+            .collect { chunk ->
+                emit(chunk)
+            }
+    }.catch { th ->
+        if (th is CancellationException) throw th
+        throw when (th) {
+            is OpenAIException -> th.toKoryProviderException()
+            else -> th
+        }
     }
 
     /**
@@ -725,7 +730,7 @@ class OpenAIClient(
         val toolCalls = contents.filterIsInstance<Content.ToolCall>()
         val branchText = contents.filterIsInstance<Content.Text>().joinToString("")
 
-        val toolMap = request.tools.associateBy { it.name }
+        val toolMap = request.tools.getAllAsKoryTool().associateBy { it.name }
         val messages = request.chat.messages.toMutableList()
 
         if (branchText.isNotBlank()) {
@@ -911,7 +916,7 @@ class OpenAIClient(
             onFullToolCollected?.invoke(choiceIndex, call.name, call.argumentsJson)
         }
 
-        val toolMap = request.tools.associateBy { it.name }
+        val toolMap = request.tools.getAllAsKoryTool().associateBy { it.name }
         val messages = request.chat.messages.toMutableList()
 
         if (branchText.isNotBlank()) {

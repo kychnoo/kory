@@ -68,6 +68,7 @@ internal class OpenAIChatCompletionRequestBuilderTest {
     @Test
     fun testBuilderFullConfiguration() {
         val tool = OpenAiChatCompletionFunctionTool(
+            type = "function",
             function = OpenAIFunctionDefinition(name = "get_weather")
         )
         val request = openAIChatCompletionRequest(model = "gpt-5.6-sol") {
@@ -81,7 +82,7 @@ internal class OpenAIChatCompletionRequestBuilderTest {
             stop = OpenAIStop.OpenAIString("###")
             toolChoice = OpenAIToolChoice.Function("get_weather")
             responseFormat = OpenAIResponseFormat.JsonObject
-            serviceTier = OpenAIServiceTier.FLEX
+            serviceTier = OpenAIServiceTier.Flex
             verbosity = OpenAIVerbosity.HIGH
             store = true
             metadata = openAIMetadata { put("k", "v") }
@@ -97,7 +98,7 @@ internal class OpenAIChatCompletionRequestBuilderTest {
         assertIs<OpenAIStop.OpenAIString>(request.stop)
         assertEquals(OpenAIToolChoice.Function("get_weather"), request.toolChoice)
         assertEquals(OpenAIResponseFormat.JsonObject, request.responseFormat)
-        assertEquals(OpenAIServiceTier.FLEX, request.serviceTier)
+        assertEquals(OpenAIServiceTier.Flex, request.serviceTier)
         assertEquals(OpenAIVerbosity.HIGH, request.verbosity)
         assertEquals(true, request.store)
         assertEquals("v", request.metadata?.map?.get("k"))

@@ -126,7 +126,7 @@ internal class OpenAIChatCompletionRequestTest {
             presencePenalty = 0.2,
             responseFormat = OpenAIResponseFormat.JsonObject,
             seed = 42L,
-            serviceTier = OpenAIServiceTier.FLEX,
+            serviceTier = OpenAIServiceTier.Flex,
             stop = OpenAIStop.OpenAIString("###"),
             store = true,
             streamOptions = OpenAIStreamOptions(includeUsage = true),
@@ -136,6 +136,7 @@ internal class OpenAIChatCompletionRequestTest {
             topP = 0.9,
             tools = listOf(
                 OpenAiChatCompletionFunctionTool(
+                    type = "function",
                     function = OpenAIFunctionDefinition(name = "get_weather", strict = true)
                 )
             ),
@@ -151,7 +152,7 @@ internal class OpenAIChatCompletionRequestTest {
 
         assertEquals(request, decoded)
         assertEquals(42L, decoded.seed)
-        assertEquals(OpenAIServiceTier.FLEX, decoded.serviceTier)
+        assertEquals(OpenAIServiceTier.Flex, decoded.serviceTier)
         assertIs<OpenAIStop.OpenAIString>(decoded.stop)
         assertTrue(decoded.streamOptions?.includeUsage == true)
     }

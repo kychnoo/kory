@@ -19,10 +19,6 @@ fun chatRequestCreationWithDsl() {
             // Body for messages.
             user("Ping!")
         }
-
-        registerTools(
-            // Function for tools...
-        )
     }
 }
 

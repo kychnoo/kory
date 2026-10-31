@@ -28,6 +28,7 @@ fun advancedChatCompletionRequest(): OpenAIChatCompletionRequest {
 
     // Tool definition with strict schema adherence.
     val getWeatherTool = OpenAiChatCompletionFunctionTool(
+        type = "function",
         function = OpenAIFunctionDefinition(
             name = "get_weather",
             description = "Gets the current weather for a city",
@@ -57,7 +58,7 @@ fun advancedChatCompletionRequest(): OpenAIChatCompletionRequest {
         toolChoice = OpenAIToolChoice.Auto
         responseFormat = OpenAIResponseFormat.JsonObject
         verbosity = OpenAIVerbosity.LOW
-        serviceTier = OpenAIServiceTier.AUTO
+        serviceTier = OpenAIServiceTier.Auto
         store = false
         safetyIdentifier = "user-123"
         metadata = openAIMetadata {

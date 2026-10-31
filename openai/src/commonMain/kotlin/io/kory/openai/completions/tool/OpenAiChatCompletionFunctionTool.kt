@@ -18,6 +18,6 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class OpenAiChatCompletionFunctionTool(
-    val type: String = "function",
+    val type: String,
     val function: OpenAIFunctionDefinition,
 )

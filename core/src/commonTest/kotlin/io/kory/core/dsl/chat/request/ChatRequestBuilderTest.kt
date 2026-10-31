@@ -1,7 +1,10 @@
 package io.kory.core.dsl.chat.request
 
 import io.kory.core.chat.reasoning.ReasoningConfig
+import io.kory.core.mcp.extension.getAllAsKoryTool
+import io.kory.core.mcp.extension.getKoryTools
 import io.kory.core.message.Role
+import io.kory.core.tool.ChatTool
 import io.kory.core.tool.KoryTool
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -47,7 +50,7 @@ internal class ChatRequestBuilderTest {
         }
 
         assertEquals(1, request.tools.size)
-        assertEquals("search", request.tools[0].name)
+        assertEquals("search", request.tools.getKoryTools()[0].name)
     }
 
     @Test

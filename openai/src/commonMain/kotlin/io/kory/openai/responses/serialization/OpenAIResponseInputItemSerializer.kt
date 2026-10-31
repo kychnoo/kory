@@ -1,6 +1,7 @@
 package io.kory.openai.responses.serialization
 
 import io.kory.openai.responses.io.items.OpenAIResponseInputItem
+import io.kory.openai.responses.io.items.OpenAIResponseMcpListTools
 import io.kory.openai.responses.io.items.OpenAIResponsesEasyInputMessage
 import io.kory.openai.responses.io.items.OpenAIResponsesFileSearchCall
 import io.kory.openai.responses.io.items.OpenAIResponsesFunctionCall
@@ -45,6 +46,7 @@ object OpenAIResponseInputItemSerializer : KSerializer<OpenAIResponseInputItem> 
             is OpenAIResponsesFunctionCallOutput -> OpenAIResponsesFunctionCallOutput.serializer()
             is OpenAIResponsesReasoning -> OpenAIResponsesReasoning.serializer()
             is OpenAIResponsesFileSearchCall -> OpenAIResponsesFileSearchCall.serializer()
+            is OpenAIResponseMcpListTools -> OpenAIResponseMcpListTools.serializer()
         } as KSerializer<OpenAIResponseInputItem>
 
         val json = (encoder as? JsonEncoder)?.json
@@ -82,6 +84,7 @@ object OpenAIResponseInputItemSerializer : KSerializer<OpenAIResponseInputItem> 
             "function_call_output" -> OpenAIResponsesFunctionCallOutput.serializer()
             "file_search_call" -> OpenAIResponsesFileSearchCall.serializer()
             "reasoning" -> OpenAIResponsesReasoning.serializer()
+            "mcp_list_tools" -> OpenAIResponseMcpListTools.serializer()
             else -> throw SerializationException("Unknown type: $name")
         }
 

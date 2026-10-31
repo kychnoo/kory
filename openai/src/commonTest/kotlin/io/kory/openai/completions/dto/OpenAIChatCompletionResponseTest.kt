@@ -65,7 +65,7 @@ internal class OpenAIChatCompletionResponseTest {
         assertEquals(1699892447L, response.created)
         assertEquals("gpt-5.6-sol", response.model)
         assertEquals("fp_abc", response.systemFingerprint)
-        assertEquals(OpenAIServiceTier.DEFAULT, response.serviceTier)
+        assertEquals(OpenAIServiceTier.Default, response.serviceTier)
 
         val choice = response.choices.single()
         assertEquals(0, choice.index)

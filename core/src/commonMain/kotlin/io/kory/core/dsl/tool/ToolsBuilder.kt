@@ -1,6 +1,10 @@
 package io.kory.core.dsl.tool
 
 import io.kory.core.dsl.marker.KoryDsl
+import io.kory.core.extension.tool.asChatTool
+import io.kory.core.mcp.extension.asChatTool
+import io.kory.core.mcp.tool.MCPTool
+import io.kory.core.tool.ChatTool
 import io.kory.core.tool.KoryTool
 
 /**
@@ -12,7 +16,7 @@ import io.kory.core.tool.KoryTool
  */
 @KoryDsl
 class ToolsBuilder {
-    val toolsList = mutableListOf<KoryTool<*, *>>()
+    val toolsList = mutableListOf<ChatTool>()
 
     /**
      * Registers a tool.
@@ -20,7 +24,9 @@ class ToolsBuilder {
      * @param tool The [KoryTool] instance to register.
      */
     fun tool(tool: KoryTool<*, *>) {
-        if (tool !in toolsList) toolsList.add(tool)
+        tool.asChatTool().also { tool ->
+            if (tool !in toolsList) toolsList.add(tool)
+        }
     }
 
     /**
@@ -37,15 +43,17 @@ class ToolsBuilder {
      *
      * @param tools The tools collection to register. Duplicates are ignored.
      */
-    fun tools(tools: Collection<KoryTool<*, *>>) {
-        for (tool in tools) {
-            if (tool !in toolsList) {
-                toolsList.add(tool)
-            }
+    fun tools(tools: Collection<KoryTool<*, *>>) { for (tool in tools) tool(tool) }
+
+    fun mcp(tool: MCPTool) {
+        tool.asChatTool().also { tool ->
+            if (tool !in toolsList) toolsList.add(tool)
         }
     }
+    fun mcpTools(vararg tools: MCPTool) { for (tool in tools) mcp(tool) }
+    fun mcpTools(tools: Collection<MCPTool>) { tools.forEach { mcp(it) } }
 
-    internal fun build(): List<KoryTool<*, *>> = toolsList
+    fun build(): List<ChatTool> = toolsList
 }
 
 /**
@@ -59,4 +67,4 @@ class ToolsBuilder {
  *
  * @sample io.kory.core.samples.tools.useTestWeatherToolInKoryTools
  */
-fun koryTools(init: ToolsBuilder.() -> Unit) = ToolsBuilder().apply(init).build()
+fun koryTools(init: ToolsBuilder.() -> Unit): List<ChatTool> = ToolsBuilder().apply(init).build()

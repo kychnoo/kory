@@ -2,8 +2,11 @@ package io.kory.openai.responses.extension
 
 import io.kory.core.tool.KoryTool
 import io.kory.openai.responses.io.tool.OpenAIFunctionTool
+import io.kory.openai.responses.io.tool.OpenAIResponsesToolDto
 import io.kory.openai.responses.model.tool.OpenAIEToolOptions
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 
 fun <ARGS, R> KoryTool<ARGS, R>.toOpenAIResponsesFunctionTool(
     options: OpenAIEToolOptions = OpenAIEToolOptions()
