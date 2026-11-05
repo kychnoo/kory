@@ -12,6 +12,7 @@ import io.kory.openai.responses.io.items.OpenAIResponsesEasyInputMessage
 import io.kory.openai.responses.io.tool.OpenAIResponsesTool
 import io.kory.openai.responses.message.content.OpenAIResponseContent
 import io.kory.openai.shared.param.OpenAIMetadata
+import io.kory.openai.shared.param.reasoning.OpenAIReasoning
 
 data class OpenAIResponsesRequest(
     val model: String,
@@ -21,6 +22,7 @@ data class OpenAIResponsesRequest(
     val maxToolCalls: Int? = null,
     val metadata: OpenAIMetadata? = null,
     val background: Boolean = false,
+    val reasoning: OpenAIReasoning? = null,
     val tools: List<OpenAIResponsesTool<*>> = emptyList(),
     val toolExecutionConfig: ToolExecutionConfig = ToolExecutionConfig(),
 ) : DtoMapper<OpenAIResponsesRequestDto> {
@@ -29,6 +31,11 @@ data class OpenAIResponsesRequest(
             model = model,
             input = input,
             instructions = instructions,
+            maxOutputTokens = maxOutputTokens,
+            maxToolCalls = maxToolCalls,
+            metadata = metadata,
+            background = background,
+            reasoning = reasoning,
             tools = tools.map { it.toDto() },
         )
     }

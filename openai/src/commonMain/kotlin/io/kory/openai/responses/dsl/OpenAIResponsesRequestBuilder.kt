@@ -10,6 +10,7 @@ import io.kory.openai.responses.io.OpenAIResponseInput
 import io.kory.openai.responses.io.items.OpenAIResponseInputItem
 import io.kory.openai.responses.io.tool.OpenAIResponsesTool
 import io.kory.openai.shared.param.OpenAIMetadata
+import io.kory.openai.shared.param.reasoning.OpenAIReasoning
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -25,6 +26,7 @@ class OpenAIResponsesRequestBuilder {
     var maxOutputTokens: Int? = null
     var maxToolCalls: Int? = null
     var metadata: OpenAIMetadata? = null
+    var reasoning: OpenAIReasoning? = null
 
     val toolsList = mutableListOf<OpenAIResponsesTool<*>>()
 
@@ -106,6 +108,7 @@ class OpenAIResponsesRequestBuilder {
             maxToolCalls = maxToolCalls,
             metadata = metadata,
             background = background,
+            reasoning = reasoning,
             tools = toolsList,
             toolExecutionConfig = selectedConfig
         )
