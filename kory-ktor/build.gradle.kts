@@ -52,6 +52,8 @@ kotlin {
 
             dependencies {
                 implementation(kotlin("test"))
+                implementation(libs.kotlinxCoroutinesTest)
+                implementation(libs.ktor.client.mock)
             }
         }
 
