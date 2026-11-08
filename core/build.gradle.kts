@@ -44,19 +44,14 @@ kotlin {
             implementation(libs.kotlinxIoCore)
         }
 
-        getByName("jvmSharedMain") {
-            dependencies {
-                api(project(":kory-ktor"))
-
-                implementation(libs.ktor.client.okhttp)
-            }
-        }
+        getByName("jvmSharedMain")
 
         commonTest {
             kotlin.srcDir("src/samples/kotlin")
 
             dependencies {
                 implementation(kotlin("test"))
+                implementation(libs.kotlinxCoroutinesTest)
             }
         }
     }

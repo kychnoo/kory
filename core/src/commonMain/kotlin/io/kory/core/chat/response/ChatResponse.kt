@@ -25,10 +25,12 @@ data class ChatResponse(
     val choices: List<ChatChoice>,
     val usage: TokensUsage? = null
 ) {
+    val firstChoice get() = choices.first()
+
     val output: List<Content.Response>
         get() = choices.firstOrNull()?.contents.orEmpty()
 
-    val text: String
+    val outputText: String
         get() = output.filterIsInstance<Content.Text>().joinToString("") { it.text }
 
     val toolCalls: List<Content.ToolCall>

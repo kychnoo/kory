@@ -5,6 +5,7 @@ import io.kory.core.chat.request.ChatRequest
 import io.kory.core.dsl.tool.ToolsBuilder
 import io.kory.core.dsl.tool.koryTools
 import io.kory.core.message.Message
+import io.kory.core.tool.ChatTool
 import io.kory.core.tool.KoryTool
 import kotlinx.serialization.Serializable
 
@@ -44,7 +45,7 @@ data class Chat(
     fun asChatRequest(temperature: Double? = null,
                       maxTokens: Int? = null, topK: Int? = null,
                       reasoning: ReasoningConfig? = null,
-                      tools: List<KoryTool<*, *>> = emptyList()
+                      tools: List<ChatTool> = emptyList()
     ): ChatRequest = ChatRequest(
         chat = this,
         temperature = temperature,

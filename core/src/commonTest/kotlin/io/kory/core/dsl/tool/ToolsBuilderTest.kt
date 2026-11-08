@@ -1,5 +1,6 @@
 package io.kory.core.dsl.tool
 
+import io.kory.core.mcp.extension.getKoryTools
 import io.kory.core.tool.KoryTool
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.serializer
@@ -13,6 +14,7 @@ internal class ToolsBuilderTest {
 
     private val dummyTool = object : KoryTool<DummyArgs, String>("test_tool", "A test tool") {
         override val argsSerializer = serializer<DummyArgs>()
+        override val resultSerializer = serializer<String>()
         override suspend fun execute(args: DummyArgs): String = args.value
     }
 
@@ -23,7 +25,7 @@ internal class ToolsBuilderTest {
         }
 
         assertEquals(1, tools.size)
-        assertEquals("test_tool", tools[0].name)
+        assertEquals("test_tool", tools.getKoryTools()[0].name)
     }
 
     @Test

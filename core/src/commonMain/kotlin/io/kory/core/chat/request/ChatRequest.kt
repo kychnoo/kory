@@ -2,6 +2,7 @@ package io.kory.core.chat.request
 
 import io.kory.core.chat.Chat
 import io.kory.core.chat.reasoning.ReasoningConfig
+import io.kory.core.tool.ChatTool
 import io.kory.core.tool.KoryTool
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -38,6 +39,6 @@ data class ChatRequest(
     val topK: Int? = null,
     val topP: Double? = null,
     val reasoning: ReasoningConfig? = null,
-    @Transient val tools: List<KoryTool<*, *>> = emptyList(),
+    @Transient val tools: List<ChatTool> = emptyList(),
     private val stream: Boolean = false
 )

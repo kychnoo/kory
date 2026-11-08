@@ -60,5 +60,8 @@ value class OpenAIMetadata internal constructor(
 
             return OpenAIMetadata(map)
         }
+
+        fun create(ignoreConstraints: Boolean = false, block: Map<String, String>.() -> Unit): OpenAIMetadata
+         = create(buildMap(block), ignoreConstraints)
     }
 }

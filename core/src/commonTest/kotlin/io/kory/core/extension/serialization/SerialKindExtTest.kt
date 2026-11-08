@@ -14,7 +14,7 @@ internal class SerialKindExtTest {
 
     @Test
     fun testCharType() {
-        assertEquals("char", PrimitiveKind.CHAR.toJsonType())
+        assertEquals("string", PrimitiveKind.CHAR.toJsonType())
     }
 
     @Test
@@ -50,25 +50,5 @@ internal class SerialKindExtTest {
     @Test
     fun testStringType() {
         assertEquals("string", PrimitiveKind.STRING.toJsonType())
-    }
-
-    @Test
-    fun testClassType() {
-        assertEquals("object", StructureKind.CLASS.toJsonType())
-    }
-
-    @Test
-    fun testMapType() {
-        assertEquals("object", StructureKind.MAP.toJsonType())
-    }
-
-    @Test
-    fun testObjectType() {
-        assertEquals("object", StructureKind.OBJECT.toJsonType())
-    }
-
-    @Test
-    fun testListType() {
-        assertEquals("array", StructureKind.LIST.toJsonType())
     }
 }

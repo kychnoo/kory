@@ -18,6 +18,7 @@ import io.kory.core.dsl.files.UploadFileRequestBuilder
 import io.kory.core.dsl.files.UploadFilesRequestBuilder
 import io.kory.core.dsl.files.uploadFileRequest
 import io.kory.core.dsl.files.uploadFilesRequest
+import io.kory.core.dsl.tool.ToolsBuilder
 import io.kory.core.exception.files.FileToDeleteNotSelectedException
 import io.kory.core.exception.files.upload.FileToUploadNotSelectedException
 import io.kory.core.exception.tools.ToolExecutionException
@@ -31,10 +32,12 @@ import io.kory.core.files.api.ApiFilesList
 import io.kory.core.files.progress.MultiFileProgress
 import io.kory.core.files.progress.SingleFileProgress
 import io.kory.core.files.progress.UploadFileProgressListener
+import io.kory.core.mcp.extension.getAllAsKoryTool
 import io.kory.core.message.Message
 import io.kory.core.message.Role
 import io.kory.core.message.content.Content
 import io.kory.core.model.Model
+import io.kory.core.tool.ChatTool
 import io.kory.core.tool.KoryTool
 import io.kory.core.tool.capable.ToolCapable
 import io.kory.ktor.KoryHttpClient
@@ -43,6 +46,7 @@ import io.kory.ktor.data.remote.config.KoryHttpClientConfig
 import io.kory.ktor.data.remote.model.file.KoryFilePart
 import io.kory.ktor.data.remote.model.formdata.KoryFormDataPart
 import io.kory.ktor.exception.KoryHttpException
+import io.kory.ktor.shared.serialization.decodeFromJson
 import io.kory.openai.completions.dsl.OpenAIChatCompletionRequestBuilder
 import io.kory.openai.completions.dsl.openAIChatCompletionRequest
 import io.kory.openai.completions.dto.OpenAIChatCompletionRequest
@@ -68,16 +72,25 @@ import io.kory.openai.internal.extension.file.toOpenAIUploadFileRequest
 import io.kory.openai.internal.extension.toModels
 import io.kory.openai.responses.dsl.OpenAIResponsesRequestBuilder
 import io.kory.openai.responses.dsl.openAIResponsesRequest
-import io.kory.openai.responses.dto.OpenAIResponsesRequest
+import io.kory.openai.responses.dto.OpenAIResponsesDeleteResponse
+import io.kory.openai.responses.data.OpenAIResponsesRequest
 import io.kory.openai.responses.dto.OpenAIResponsesResponse
 import io.kory.openai.responses.extension.toOpenAIResponseException
+import io.kory.openai.responses.io.items.OpenAIResponsesFunctionCall
+import io.kory.openai.responses.io.items.function.OpenAIFunctionCallOutputOutput
+import io.kory.openai.responses.io.tool.OpenAIFunctionTool
+import io.kory.openai.responses.model.OpenAIResponseStatus
 import io.kory.openai.shared.serialization.json
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.channelFlow
@@ -95,6 +108,8 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlin.collections.map
 import kotlin.getOrElse
+import kotlin.let
+import kotlin.time.Duration.Companion.seconds
 
 private class PartialToolCallAccumulator(
     val choiceIndex: Int,
@@ -166,20 +181,16 @@ class OpenAIClient(
      */
     suspend fun chatCompletions(request: OpenAIChatCompletionRequest): OpenAIChatCompletionResponse = withContext(Dispatchers.Default) {
         runCatchingCancelable {
-            val response = client.post(
+            client.post(
                 "chat/completions",
                 json.encodeToString(request)
-            )
-
-            json.decodeFromString<OpenAIChatCompletionResponse>(
-                response.body.decodeToString()
-            )
+            ).decodeFromJson<OpenAIChatCompletionResponse>()
         }.getOrElse { th ->
             throw when (th) {
                 is KoryHttpException.HttpStatus -> {
                     if (th.body.isEmpty()) throw th
                     runCatching {
-                        json.decodeFromString<OpenAIErrorResponse>(th.body.decodeToString()).toException(th.status)
+                        th.decodeFromJson<OpenAIErrorResponse>().toException(th.status)
                     }.getOrDefault(th)
                 }
 
@@ -203,28 +214,99 @@ class OpenAIClient(
         return chatCompletions(openAIChatCompletionRequest(model, block))
     }
 
-    suspend fun chatResponses(request: OpenAIResponsesRequest): OpenAIResponsesResponse = withContext(Dispatchers.Default) {
-        runCatchingCancelable {
-            val response = client.post(
+    suspend fun chatResponses(
+        request: OpenAIResponsesRequest,
+        onCanceled: ((cancelResult: OpenAIResponsesResponse?) -> Unit)? = null
+    ): OpenAIResponsesResponse = withContext(Dispatchers.IO) {
+        var responseId: String = ""
+        runCatching {
+            var response = client.post(
                 path = "responses",
-                json.encodeToString(request)
-            )
-
-            val decodedJson = json.decodeFromString<OpenAIResponsesResponse>(
-                response.body.decodeToString()
-            )
-
-            decodedJson.error?.let { error ->
-                throw error.toOpenAIResponseException(response.status)
+                json.encodeToString(request.toDto())
+            ).let { resp ->
+                resp.decodeFromJson<OpenAIResponsesResponse>().also {
+                    it.error?.let { error -> throw error.toOpenAIResponseException(resp.status)}
+                    responseId = it.id
+                }
             }
 
-            decodedJson
+            if (request.background) {
+                while (response.status == OpenAIResponseStatus.QUEUED || response.status == OpenAIResponseStatus.IN_PROGRESS) {
+
+                    ensureActive()
+                    delay(2.seconds)
+                    response = retrieveResponse(response.id)
+                    responseId = response.id
+                    if (response.status == OpenAIResponseStatus.FAILED) {
+                        throw IllegalStateException("Background response generation failed: ${response.error}")
+                    }
+                }
+            }
+
+            if (request.toolExecutionConfig.autoExecute) {
+                val semaphore = Semaphore(request.toolExecutionConfig.maxConcurrency)
+                val toolMap = request.tools.filterIsInstance<OpenAIFunctionTool<*, *>>().associateBy { it.name }
+
+                val calls = response.output.filterIsInstance<OpenAIResponsesFunctionCall>()
+                if (calls.isNotEmpty()) {
+                    val newRequest = request.addItems(response)
+                    val results = coroutineScope {
+                        calls.map { call ->
+                            async(request.toolExecutionConfig.executionDispatcher) {
+                                semaphore.withPermit {
+                                    runCatchingCancelable {
+                                        val tool = toolMap[call.name] ?: throw ToolExecutionException(
+                                            toolName = call.name,
+                                            argumentsJson = call.arguments,
+                                            message = "Tool '${call.name}' is not registered.",
+                                        )
+
+                                        request.toolExecutionConfig.onToolCall?.onToolCall(call.name)
+
+                                        val result = tool.executeRaw(call.arguments)
+                                        call.toFunctionCallOutput(
+                                            OpenAIFunctionCallOutputOutput.StringOutput(result)
+                                        )
+                                    }.getOrElse { th ->
+                                        if (request.toolExecutionConfig.returnErrorsToAI) {
+                                            call.toFunctionCallOutput(
+                                                OpenAIFunctionCallOutputOutput.StringOutput("Error executing tool ${call.name}: ${th.message ?: th::class.simpleName ?: "unknown error"}")
+                                            )
+                                        } else {
+                                            throw ToolExecutionException(
+                                                toolName = call.name,
+                                                argumentsJson = call.arguments,
+                                                message = "Error executing tool ${call.name}: ${th.message ?: th::class.simpleName ?: "unknown error"}",
+                                                cause = th
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }.awaitAll()
+
+                    response = chatResponses(newRequest.addInputItems(results))
+                }
+            }
+
+            response
         }.getOrElse { th ->
+            if (th is CancellationException) {
+                if (request.background && responseId.isNotBlank()) {
+                    withContext(NonCancellable) {
+                        val response = runCatchingCancelable { cancelResponsesResponse(responseId) }.getOrNull()
+                        onCanceled?.invoke(response)
+                    }
+                }
+                throw th
+            }
+
             throw when (th) {
                 is KoryHttpException.HttpStatus -> {
                     if (th.body.isEmpty()) throw th
                     val apiError = runCatching {
-                        json.decodeFromString<OpenAIResponsesResponse>(th.body.decodeToString()).error
+                        th.decodeFromJson<OpenAIResponsesResponse>().error
                     }.getOrNull()
 
                     if (apiError != null) {
@@ -238,9 +320,87 @@ class OpenAIClient(
         }
     }
 
+    /**
+     * @sample io.kory.openai.samples.client.chatResponsesRequestCreation
+     * @sample io.kory.openai.samples.client.chatResponsesFileRequestCreation
+     * @sample io.kory.openai.samples.client.chatResponsesToolRequestCreation
+     */
     suspend fun chatResponses(model: String, block: OpenAIResponsesRequestBuilder.() -> Unit): OpenAIResponsesResponse =
         chatResponses(openAIResponsesRequest(model, block))
 
+    suspend fun retrieveResponse(
+        responseId: String,
+        stream: Boolean = false
+    ): OpenAIResponsesResponse = withContext(Dispatchers.IO) {
+        runCatchingCancelable {
+            val response = client.get(
+                path = "responses/$responseId",
+                params = mapOf(
+                    "stream" to stream
+                )
+            )
+
+            response.decodeFromJson<OpenAIResponsesResponse>().apply {
+                error?.let { error ->
+                    throw error.toOpenAIResponseException(response.status)
+                }
+            }
+        }.getOrElse { th ->
+            throw when (th) {
+                is KoryHttpException.HttpStatus -> {
+                    if (th.body.isEmpty()) throw th
+                    runCatching {
+                        th.decodeFromJson<OpenAIResponsesResponse>().error
+                    }.getOrNull()?.let {
+                        throw it.toOpenAIResponseException(th.status)
+                    }
+                    th
+                }
+
+                else -> th
+            }
+        }
+    }
+
+    suspend fun deleteResponse(responseId: String): OpenAIResponsesDeleteResponse = withContext(Dispatchers.IO) {
+        runCatchingCancelable {
+            client.delete("responses/$responseId").decodeFromJson<OpenAIResponsesDeleteResponse>()
+        }.getOrThrow()
+    }
+
+    /**
+     * Cancels an in-progress response from the OpenAI Responses API.
+     *
+     * @param responseId The ID of the response to cancel.
+     * @return The [OpenAIResponsesResponse] reflecting the canceled state.
+     * @throws io.kory.openai.shared.error.OpenAIResponseException if the API returns an error.
+     * @throws KoryHttpException if the HTTP request fails.
+     *
+     * @see OpenAIResponsesResponse
+     */
+    suspend fun cancelResponsesResponse(responseId: String): OpenAIResponsesResponse = withContext(Dispatchers.IO) {
+        runCatchingCancelable {
+            client.post("responses/$responseId/cancel", null).let { resp ->
+                resp.decodeFromJson<OpenAIResponsesResponse>()
+                    .also { it.error?.let { error -> throw error.toOpenAIResponseException(resp.status)} }
+            }
+        }.getOrElse { th ->
+            throw when (th) {
+                is KoryHttpException.HttpStatus -> {
+                    if (th.body.isEmpty()) throw th
+                    runCatching {
+                        th.decodeFromJson<OpenAIResponsesResponse>().error
+                    }.getOrNull()?.let { error ->
+                        throw error.toOpenAIResponseException(th.status)
+                    }
+
+                    th
+                }
+
+                else -> th
+            }
+        }
+    }
 
     /**
      * Sends a chat request to the OpenAI and returns a non-streaming response.
@@ -332,7 +492,7 @@ class OpenAIClient(
                 is KoryHttpException.HttpStatus -> {
                     if (th.body.isEmpty()) throw th
                     runCatching {
-                        json.decodeFromString<OpenAIErrorResponse>(th.body.decodeToString()).toException(th.status)
+                        th.decodeFromJson<OpenAIErrorResponse>().toException(th.status)
                     }.getOrDefault(th)
                 }
                 else -> th
@@ -369,7 +529,7 @@ class OpenAIClient(
             val chunk = json.decodeFromString<OpenAIChatCompletionChunk>(data)
             emit(chunk)
         }
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(Dispatchers.IO)
 
     /**
      * Streams raw OpenAI chat completion chunks using the request DSL.
@@ -400,15 +560,18 @@ class OpenAIClient(
      * @see ChatChunk
      * @sample io.kory.openai.samples.client.sendToChatStreamWithRequest
      */
-    override fun chatStream(request: ChatRequest): Flow<ChatChunk> {
-         return chatCompletionsStream(request.toOpenAIChatCompletionRequest())
-             .map { it.toChatChunk() }
-             .catch { th ->
-                 throw when (th) {
-                     is OpenAIException -> th.toKoryProviderException()
-                     else -> th
-                 }
-             }
+    override fun chatStream(request: ChatRequest): Flow<ChatChunk> = flow {
+        chatCompletionsStream(request.toOpenAIChatCompletionRequest())
+            .map { it.toChatChunk() }
+            .collect { chunk ->
+                emit(chunk)
+            }
+    }.catch { th ->
+        if (th is CancellationException) throw th
+        throw when (th) {
+            is OpenAIException -> th.toKoryProviderException()
+            else -> th
+        }
     }
 
     /**
@@ -455,12 +618,8 @@ class OpenAIClient(
      * @throws KoryHttpException
      * if the API returns a non-2xx status.
      */
-    suspend fun listOpenAIModels(): OpenAIModelListResponse {
-        val response = client.get("models")
-
-        return json.decodeFromString<OpenAIModelListResponse>(
-            response.body.decodeToString()
-        )
+    suspend fun listOpenAIModels(): OpenAIModelListResponse = withContext(Dispatchers.IO) {
+        client.get("models").decodeFromJson<OpenAIModelListResponse>()
     }
 
     /**
@@ -571,7 +730,7 @@ class OpenAIClient(
         val toolCalls = contents.filterIsInstance<Content.ToolCall>()
         val branchText = contents.filterIsInstance<Content.Text>().joinToString("")
 
-        val toolMap = request.tools.associateBy { it.name }
+        val toolMap = request.tools.getAllAsKoryTool().associateBy { it.name }
         val messages = request.chat.messages.toMutableList()
 
         if (branchText.isNotBlank()) {
@@ -757,7 +916,7 @@ class OpenAIClient(
             onFullToolCollected?.invoke(choiceIndex, call.name, call.argumentsJson)
         }
 
-        val toolMap = request.tools.associateBy { it.name }
+        val toolMap = request.tools.getAllAsKoryTool().associateBy { it.name }
         val messages = request.chat.messages.toMutableList()
 
         if (branchText.isNotBlank()) {
@@ -806,7 +965,7 @@ class OpenAIClient(
                 emit(chunk.copy(choices = chunk.choices.map { it.copy(index = choiceIndex) }))
             }
 
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(Dispatchers.IO)
 
     /**
      * Sends a chat request with tool support and returns a streaming response using full DSL configuration.
@@ -866,7 +1025,7 @@ class OpenAIClient(
         order: OpenAIOrder? = null,
         purpose: OpenAIPurpose? = null
     ): OpenAIFileListResponse = withContext(Dispatchers.IO) {
-        val response = client.get(
+        client.get(
             path = "files",
             params = mapOf(
                 "after" to after,
@@ -874,9 +1033,7 @@ class OpenAIClient(
                 "order" to order?.value,
                 "purpose" to purpose?.value
             )
-        )
-
-        json.decodeFromString(response.body.decodeToString())
+        ).decodeFromJson()
     }
 
     /**
@@ -906,7 +1063,7 @@ class OpenAIClient(
             KoryFormDataPart.Text("purpose", request.purpose.name)
         )
 
-        val response = client.postMultipart(
+        client.postMultipart(
             path = "files",
             parts = parts,
             onProgress = onProgress?.let { listener ->
@@ -914,9 +1071,7 @@ class OpenAIClient(
                     listener.onProgress(SingleFileProgress((progressValue)))
                 }
             }
-        )
-
-        json.decodeFromString(response.body.decodeToString())
+        ).decodeFromJson()
     }
 
     /**
@@ -1055,9 +1210,7 @@ class OpenAIClient(
      * @sample io.kory.openai.samples.client.getFileFromOpenAI
      */
     suspend fun retrieveOpenAIFile(fileId: String): OpenAIFileObject = withContext(Dispatchers.IO) {
-        val response = client.get("files/$fileId")
-
-        json.decodeFromString(response.body.decodeToString())
+        client.get("files/$fileId").decodeFromJson()
     }
 
     /**
@@ -1070,9 +1223,7 @@ class OpenAIClient(
      * @sample io.kory.openai.samples.client.deleteFileFromOpenAI
      */
     suspend fun deleteOpenAIFile(fileId: String) : OpenAIFileDeleteResponse {
-        val response = client.delete("files/$fileId")
-
-        return json.decodeFromString(response.body.decodeToString())
+        return client.delete("files/$fileId").decodeFromJson()
     }
 
     suspend fun deleteOpenAIFiles(

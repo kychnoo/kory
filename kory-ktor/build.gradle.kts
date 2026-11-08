@@ -40,6 +40,8 @@ kotlin {
 
             implementation(libs.kotlinxSerialization)
             implementation(libs.kotlinxCoroutines)
+
+            implementation(project(":core"))
         }
 
         getByName("jvmSharedMain")
@@ -50,6 +52,8 @@ kotlin {
 
             dependencies {
                 implementation(kotlin("test"))
+                implementation(libs.kotlinxCoroutinesTest)
+                implementation(libs.ktor.client.mock)
             }
         }
 

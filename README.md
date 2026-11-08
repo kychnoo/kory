@@ -47,25 +47,12 @@ fun main() = runBlocking {
     // Send a catchable chat request using the DSL.
     // `chat` builds the message list, the client handles serialization and HTTP.
     client.chatCatching {
-        chat(model = "model-name") {
+        chat("model-name") {
             user("Ping!")
         }
     }.onSuccess { response ->
-        // Process the response.
-        response.choices.forEach { choice ->
-            choice.contents.forEach { content ->
-                // Each choice contains a list of content items:
-                // text, reasoning, tool calls, or multi-part content.
-                val exitContentText = when (content) {
-                    is Content.Parts -> "Parts: ${content.parts.joinToString(separator = "\n")}"
-                    is Content.Reasoning -> "Reasoning: ${content.value}"
-                    is Content.Text -> "Text: ${content.text}"
-                    is Content.ToolCall -> "Tool call: ${content.name} with ${content.argumentsJson}"
-                }
-
-                println("Exit content is: $exitContentText")
-            }
-        }
+        // Print the output message.
+        println(response.outputText.ifEmpty { "No message" })
     }.onFailure { error ->
         // onFailure will be called if the function throws an exception.
         println(error.message)
@@ -80,17 +67,10 @@ client.chatStream {
     chat(model = "model-name") {
         user("Tell me a story")
     }
-}.collectHandler {
-    // Custom collect handler.
-    onChunk { chunk ->
+}.collectHandler {     
+    onChunk { chunk: ChatChunk ->
         // Called on every chunk.
-        for (choice in chunk.choices) {
-            when (val content = choice.content) {
-                is Content.Text -> println(content.text)
-                is Content.Reasoning -> println("[thinking] ${content.value}")
-                else -> {}
-            }
-        }
+        println(chunk.text)
     }
     onError { error ->
         // Called if an error occurs during streaming.
@@ -130,6 +110,8 @@ val response = client.chatWithTools {
         user("What's the weather in Moscow?")
     }
 }
+
+println(response.outputText)
 ```
 
 ### Reasoning

@@ -8,7 +8,10 @@ import io.kory.core.dsl.chat.koryChat
 import io.kory.core.dsl.marker.KoryDsl
 import io.kory.core.dsl.tool.ToolsBuilder
 import io.kory.core.dsl.tool.koryTools
+import io.kory.core.extension.tool.asChatTool
+import io.kory.core.tool.ChatTool
 import io.kory.core.tool.KoryTool
+import kotlin.jvm.JvmName
 
 /**
  * DSL builder for constructing a [ChatRequest] with full configuration.
@@ -34,7 +37,7 @@ class ChatRequestBuilder {
     var reasoning: ReasoningConfig? = null
 
     private var chat: Chat? = null
-    private val toolsList = mutableListOf<KoryTool<*, *>>()
+    private val toolsList = mutableListOf<ChatTool>()
 
     /**
      * Sets the chat content using DSL-style message construction.
@@ -71,6 +74,21 @@ class ChatRequestBuilder {
      */
     fun registerTools(tools: Collection<KoryTool<*, *>>) {
         for (tool in tools) {
+            tool.asChatTool().also { tool ->
+                if (tool !in toolsList) {
+                    toolsList.add(tool)
+                }
+            }
+        }
+    }
+
+    fun registerTools(vararg tools: ChatTool) {
+        registerTools(tools.toList())
+    }
+
+    @JvmName("ChatToolsRegister")
+    fun registerTools(tools: Collection<ChatTool>) {
+        for (tool in tools) {
             if (tool !in toolsList) {
                 toolsList.add(tool)
             }
@@ -83,7 +101,11 @@ class ChatRequestBuilder {
      * @param block A [ToolsBuilder] lambda for registering tools.
      */
     fun registerTools(block: ToolsBuilder.() -> Unit) {
-        registerTools(koryTools(block))
+        for (tool in koryTools(block)) {
+            if (tool !in toolsList) {
+                toolsList.add(tool)
+            }
+        }
     }
 
     internal fun build(): ChatRequest {

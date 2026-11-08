@@ -1,8 +1,12 @@
 package io.kory.core.dsl.chat.request
 
 import io.kory.core.chat.reasoning.ReasoningConfig
+import io.kory.core.mcp.extension.getAllAsKoryTool
+import io.kory.core.mcp.extension.getKoryTools
 import io.kory.core.message.Role
+import io.kory.core.tool.ChatTool
 import io.kory.core.tool.KoryTool
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.serializer
 import kotlin.test.Test
@@ -17,6 +21,7 @@ internal class ChatRequestBuilderTest {
 
     private val dummyTool = object : KoryTool<DummyArgs, String>("search", "Search tool") {
         override val argsSerializer = serializer<DummyArgs>()
+        override val resultSerializer: KSerializer<String> = serializer<String>()
         override suspend fun execute(args: DummyArgs): String = args.query
     }
 
@@ -45,7 +50,7 @@ internal class ChatRequestBuilderTest {
         }
 
         assertEquals(1, request.tools.size)
-        assertEquals("search", request.tools[0].name)
+        assertEquals("search", request.tools.getKoryTools()[0].name)
     }
 
     @Test

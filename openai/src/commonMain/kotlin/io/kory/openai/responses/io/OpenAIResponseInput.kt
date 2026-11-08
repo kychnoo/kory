@@ -7,11 +7,17 @@ import kotlin.jvm.JvmInline
 
 @Serializable(with = OpenAIInputSerializer::class)
 sealed interface OpenAIResponseInput {
+    fun isEmpty(): Boolean
+
     @Serializable
     @JvmInline
-    value class Text(val value: String) : OpenAIResponseInput
+    value class Text(val value: String) : OpenAIResponseInput {
+        override fun isEmpty(): Boolean = value.isBlank()
+    }
 
    @Serializable
    @JvmInline
-   value class InputItemList(val items: List<OpenAIResponseInputItem>) : OpenAIResponseInput
+   value class InputItemList(val items: List<OpenAIResponseInputItem>) : OpenAIResponseInput {
+       override fun isEmpty(): Boolean = items.isEmpty()
+   }
 }

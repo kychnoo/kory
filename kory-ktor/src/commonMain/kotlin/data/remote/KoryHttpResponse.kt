@@ -1,5 +1,7 @@
 package io.kory.ktor.data.remote
 
+import io.kory.ktor.shared.serialization.JsonDecodable
+import io.kory.ktor.shared.serialization.json
 import kotlinx.serialization.Serializable
 
 /**
@@ -11,8 +13,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class KoryHttpResponse(
     val status: Int,
-    val body: ByteArray,
-) {
+    override val body: ByteArray,
+) : JsonDecodable {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other != null && this::class != other::class) return false
