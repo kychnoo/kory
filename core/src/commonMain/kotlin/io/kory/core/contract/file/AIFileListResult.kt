@@ -5,7 +5,9 @@ package io.kory.core.contract.file
  *
  * @param T The file type.
  */
-interface AIFileListResult<T : AIFileResult> {
+interface AIFileListResult<T : AIFileResult> : Iterable<T> {
     /** The list of files. */
     val files: List<T>
+
+    override fun iterator(): Iterator<T> = files.iterator()
 }

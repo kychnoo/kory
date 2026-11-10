@@ -179,7 +179,7 @@ class OpenAIClient(
      * @throws KoryHttpException if the request fails.
      * @throws OpenAIException if OpenAI API returns an error.
      */
-    suspend fun chatCompletions(request: OpenAIChatCompletionRequest): OpenAIChatCompletionResponse = withContext(Dispatchers.Default) {
+    suspend fun chatCompletions(request: OpenAIChatCompletionRequest): OpenAIChatCompletionResponse = withContext(Dispatchers.IO) {
         runCatchingCancelable {
             client.post(
                 "chat/completions",
@@ -891,7 +891,7 @@ class OpenAIClient(
         }
 
         emitAll(branchFlows.merge())
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(Dispatchers.IO)
 
     private fun continueBranch(
         request: ChatRequest,

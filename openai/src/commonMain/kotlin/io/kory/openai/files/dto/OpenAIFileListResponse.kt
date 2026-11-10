@@ -24,10 +24,10 @@ data class OpenAIFileListResponse(
     @SerialName("last_id") val lastId: String? = null,
 ) : AIFileListResult<OpenAIFileObject>, Mapper<ApiFilesList> {
     override val files: List<OpenAIFileObject>
-        get() =  data
+        get() = data
 
     override fun map(): ApiFilesList = ApiFilesList(
-        files = data.map { it.map() },
+        files = map { it.map() },
         nextPage = null
     )
 
@@ -38,11 +38,9 @@ data class OpenAIFileListResponse(
      *
      * @return A formatted string listing each file's name and ID.
      */
-    fun printableOutput(): String {
-        if (data.isEmpty()) return "You don't have any uploads files"
-        return "Your files(filename: fileId):\n" + data.joinToString("\n") { "${it.filename}: ${it.id}" }
-    }
+    fun printableOutput(): String = if (data.isEmpty()) "You don't have any uploads files"
+        else "Your files(filename: fileId):\n" + data.joinToString("\n") { "${it.filename}: ${it.id}" }
 
-    fun filesIds(): List<String> = data.map { it.id }
+    fun filesIds(): List<String> = map { it.id }
 
 }

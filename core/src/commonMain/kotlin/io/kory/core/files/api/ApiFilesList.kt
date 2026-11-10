@@ -18,15 +18,13 @@ data class ApiFilesList(
      *
      * @return A formatted string listing each file's name and ID.
      */
-    fun printableOutput(): String {
-        if (files.isEmpty()) return "You don't have any uploads files"
-        return "Your files(filename: fileId):\n" + files.joinToString("\n") { "${it.name}: ${it.id}" }
-    }
+    fun printableOutput(): String = if (files.isEmpty()) "You don't have any uploads files"
+        else "Your files(filename: fileId):\n" + files.joinToString("\n") { "${it.name}: ${it.id}" }
 
     /**
      * Returns the IDs of all files in the list.
      *
      * @return A list of file IDs.
      */
-    fun filesIds(): List<String> = files.map { it.id }
+    fun filesIds(): List<String> = map { it.id }
 }
