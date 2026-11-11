@@ -17,9 +17,12 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 /**
- * Serializer for [OpenAIToolChoice] handling both the mode string
- * (`"auto"`, `"none"`, `"required"`) and the named-tool object form
- * (`{"type": "function", "function": {"name": "..."}}`).
+ * Serializer for [OpenAIToolChoice] handling the mode string
+ * (`"auto"`, `"none"`, `"required"`) and the named-tool object forms:
+ * the Chat Completions form (`{"type": "function", "function": {"name": "..."}}`)
+ * and the Responses API form (`{"type": "function", "name": "..."}`).
+ *
+ * Serialization always produces the Chat Completions (nested) object form.
  */
 object OpenAIToolChoiceSerializer : KSerializer<OpenAIToolChoice> {
     override val descriptor: SerialDescriptor = buildClassSerialDescriptor("OpenAIToolChoice")
@@ -53,7 +56,10 @@ object OpenAIToolChoiceSerializer : KSerializer<OpenAIToolChoice> {
         val obj: JsonObject = element.jsonObject
         val type = obj["type"]?.jsonPrimitive?.contentOrNull
         require(type == "function") { "Unsupported tool_choice type: $type" }
+        // Chat Completions form: {"type": "function", "function": {"name": "..."}}
+        // Responses API form:    {"type": "function", "name": "..."}
         val name = obj["function"]?.jsonObject?.get("name")?.jsonPrimitive?.content
+            ?: obj["name"]?.jsonPrimitive?.contentOrNull
             ?: throw IllegalArgumentException("Missing function name in tool_choice")
         return OpenAIToolChoice.Function(name)
     }
