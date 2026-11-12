@@ -135,7 +135,7 @@ private class PartialToolCallAccumulator(
  * @sample io.kory.openai.samples.chat.basicChatCall
  */
 class OpenAIClient(
-    private val apiKey: ApiKey,
+    private val apiKey: ApiKey = ApiKey.fromEnv("OPENAI_API_KEY"),
     private val baseUrl: String = "https://api.openai.com/v1",
     httpClient: KoryHttpClient? = null
 ) : ChatClient, ToolCapable, FilesAPISupport {
@@ -318,6 +318,10 @@ class OpenAIClient(
                 else -> th
             }
         }
+    }
+
+    suspend fun chatResponses(model: String, input: String): OpenAIResponsesResponse = chatResponses(model) {
+        inputText(input)
     }
 
     /**
