@@ -4,6 +4,8 @@ import io.kory.core.message.Role
 import io.kory.openai.completions.dsl.OpenAIRequestDsl
 import io.kory.openai.responses.io.items.OpenAIResponsesEasyInputMessage
 import io.kory.openai.responses.io.items.OpenAIResponseInputItem
+import io.kory.openai.responses.io.items.OpenAIResponsesMcpApprovalResponse
+import io.kory.openai.responses.io.items.OpenAIResponsesMessage
 import io.kory.openai.responses.message.content.OpenAIResponseContent
 
 /**
@@ -29,6 +31,19 @@ class OpenAIResponseInputItemBuilder {
     }
 
     /**
+     * Adds a simple input message with pre-built content.
+     *
+     * @param role The message role.
+     * @param content The message content.
+     */
+    fun easyInputMessage(role: Role, content: OpenAIResponseContent) {
+        items.add(OpenAIResponsesEasyInputMessage(
+            role = role,
+            content = content
+        ))
+    }
+
+    /**
      * Adds a simple multi-part input message using a DSL.
      *
      * @param role The message role.
@@ -38,6 +53,55 @@ class OpenAIResponseInputItemBuilder {
         items.add(OpenAIResponsesEasyInputMessage(
                 role = role,
                 content = openAIResponseContent(block)
+            )
+        )
+    }
+
+    /**
+     * Adds a structured input message with pre-built content.
+     *
+     * @param role The message role.
+     * @param content The message content.
+     */
+    fun message(role: Role, content: OpenAIResponseContent) {
+        items.add(OpenAIResponsesEasyInputMessage(
+            role = role,
+            content = content
+        ))
+    }
+
+    /**
+     * Adds a structured input message using a DSL.
+     *
+     * @param role The message role.
+     * @param block DSL for constructing the message content.
+     */
+    fun message(role: Role, block: OpenAIResponseContentBuilder.() -> Unit) {
+        items.add(OpenAIResponsesMessage(
+            role = role,
+            content = openAIResponseContent(block)
+        ))
+    }
+
+    /**
+     * Adds an MCP approval response input item.
+     *
+     * @param approvalRequestId The ID of the approval request being responded to.
+     * @param approve Whether the request is approved.
+     * @param reason Optional reason for the decision.
+     * @param id Optional unique identifier for this item.
+     */
+    fun mcpApprovalResponse(
+        approvalRequestId: String,
+        approve: Boolean,
+        reason: String? = null,
+        id: String? = null
+    ) {
+        items.add(OpenAIResponsesMcpApprovalResponse(
+                approvalRequestId = approvalRequestId,
+                approve = approve,
+                reason = reason,
+                id = id
             )
         )
     }

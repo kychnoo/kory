@@ -13,4 +13,5 @@ dependencies {
     // Add a dependency on the Kotlin Gradle plugin, so that convention plugins can apply it.
     implementation(libs.kotlinGradlePlugin)
     implementation(libs.android.kmp.gradlePlugin)
+    implementation(libs.maven.publish.plugin)
 }
