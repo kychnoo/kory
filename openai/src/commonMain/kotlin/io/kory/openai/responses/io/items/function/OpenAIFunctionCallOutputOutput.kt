@@ -12,6 +12,10 @@ sealed interface OpenAIFunctionCallOutputOutput {
     value class StringOutput(val value: String) : OpenAIFunctionCallOutputOutput
 
     @Serializable
-    data class OutputContentList(val items: List<OpenAIResponseInputItem>) : OpenAIFunctionCallOutputOutput
+    data class OutputContentList(
+        val items: List<OpenAIResponseInputItem>
+    ) : OpenAIFunctionCallOutputOutput, Iterable<OpenAIResponseInputItem> {
+        override fun iterator(): Iterator<OpenAIResponseInputItem> = items.iterator()
+    }
 
 }

@@ -135,7 +135,7 @@ private class PartialToolCallAccumulator(
  * @sample io.kory.openai.samples.chat.basicChatCall
  */
 class OpenAIClient(
-    private val apiKey: ApiKey,
+    private val apiKey: ApiKey = ApiKey.fromEnv("OPENAI_API_KEY"),
     private val baseUrl: String = "https://api.openai.com/v1",
     httpClient: KoryHttpClient? = null
 ) : ChatClient, ToolCapable, FilesAPISupport {
@@ -179,7 +179,7 @@ class OpenAIClient(
      * @throws KoryHttpException if the request fails.
      * @throws OpenAIException if OpenAI API returns an error.
      */
-    suspend fun chatCompletions(request: OpenAIChatCompletionRequest): OpenAIChatCompletionResponse = withContext(Dispatchers.Default) {
+    suspend fun chatCompletions(request: OpenAIChatCompletionRequest): OpenAIChatCompletionResponse = withContext(Dispatchers.IO) {
         runCatchingCancelable {
             client.post(
                 "chat/completions",
@@ -318,6 +318,10 @@ class OpenAIClient(
                 else -> th
             }
         }
+    }
+
+    suspend fun chatResponses(model: String, input: String): OpenAIResponsesResponse = chatResponses(model) {
+        inputText(input)
     }
 
     /**
@@ -891,7 +895,7 @@ class OpenAIClient(
         }
 
         emitAll(branchFlows.merge())
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(Dispatchers.IO)
 
     private fun continueBranch(
         request: ChatRequest,
