@@ -33,7 +33,7 @@ Open the project root directory in IntelliJ IDEA. The IDE will automatically det
 ### 4. Run Tests
 
 ```bash
-./gradlew test
+./gradlew allTests
 ```
 
 ## Project Structure
@@ -72,7 +72,7 @@ kory/
 - Add unit tests for new functionality.
 - Tests use JUnit 5 via `kotlin("test")` — no additional test frameworks.
 - Follow the existing test naming convention: `<ClassName>Test`.
-- Run `./gradlew test` before submitting.
+- Run `./gradlew allTests` before submitting.
 
 ### Commit Messages
 
@@ -97,7 +97,7 @@ kory/
 ### PR Checklist
 
 - [ ] Code compiles without errors (`./gradlew build`).
-- [ ] All tests pass (`./gradlew test`).
+- [ ] All tests pass (`./gradlew allTests`).
 - [ ] New public APIs have KDoc.
 - [ ] No unnecessary dependencies added.
 - [ ] Code follows existing conventions.

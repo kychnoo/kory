@@ -1,4 +1,6 @@
 import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink
 
 plugins {
     kotlin("multiplatform")
@@ -63,5 +65,14 @@ mavenPublishing {
             connection = "scm:git:git://github.com/kychnoo/kory.git"
             developerConnection = "scm:git:ssh://git@github.com/kychnoo/kory.git"
         }
+    }
+}
+
+tasks.withType<KotlinNativeLink>().configureEach {
+    val hostOs = System.getProperty("os.name").lowercase()
+    val target = this.target
+
+    if (hostOs.startsWith("windows") && (target.contains("linux") || target.contains("macos") || target.contains("ios"))) {
+        enabled = false
     }
 }
